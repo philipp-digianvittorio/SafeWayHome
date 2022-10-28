@@ -62,10 +62,10 @@ def my_func():
 	form=DatabaseForm()
 
 	if form.validate_on_submit():
-    pass
-    # code here
+		pass
+	# code here
 	else:
-    pass
+		pass
 		# other code
 
 	return render_template("index.html", form=form)
@@ -75,14 +75,14 @@ def my_func():
 @app.route("/database", methods=["GET", "POST"])
 def upload():
 	if request.method == "POST":
-    pass
-		########################################################################################
-		### -- Update Database ------------------------------------------------------------- ###
-		########################################################################################
+		pass
+	########################################################################################
+	### -- Update Database ------------------------------------------------------------- ###
+	########################################################################################
 
-  else:
-    pass
-    # code here
+	else:
+		pass
+	# code here
 
 	return render_template("database.html", db_data = db_data)
 
