@@ -5,6 +5,9 @@
 # pip install flask-wtf
 # pip install wtforms
 
+# pip install flask-sqlalchemy
+# pip install sqlalchemy
+
 # -- import flask modules
 from flask import Flask, render_template, send_from_directory, url_for, request, session, flash
 from flask_uploads import UploadSet, IMAGES, configure_uploads
@@ -59,15 +62,16 @@ class DataBaseForm(FlaskForm):
 # -- Home Route --------------------------------------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def my_func():
-	form=DatabaseForm()
-
+	#form=DatabaseForm()
+	form = None
+	'''
 	if form.validate_on_submit():
 		pass
 	# code here
 	else:
 		pass
 		# other code
-
+	'''
 	return render_template("index.html", form=form)
 
 
@@ -83,8 +87,8 @@ def upload():
 	else:
 		pass
 	# code here
-
-	return render_template("database.html", db_data = db_data)
+	db_articles = [{"title": "title 1", "text": "blad ajdnfa wjf weonf oawefw o "}, {"title": "title 2", "text": "blad ajdnfa wjf weonf oawefw o "}]
+	return render_template("database.html", db_articles = db_articles)
 
 
 
