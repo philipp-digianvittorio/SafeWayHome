@@ -14,6 +14,10 @@
 - interface:
   - pins with incidents: over Street names or coordinates?
   - dropdown with 2 cities (coordinates would be fixed)
+- webscraping:
+  - filter dienststellen by police department or not 
+  - format of column article should only contain text
+  - how to get last page?
 
 ## Useful Links
 ### Interface
