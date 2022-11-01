@@ -91,6 +91,28 @@ def upload():
 	return render_template("database.html", db_articles = db_articles)
 
 
+# -- About Route -------------------------------------------------------------------------------
+@app.route("/about", methods=["GET", "POST"])
+def about():
+	#form=DatabaseForm()
+	form = None
+	return render_template("about.html", form=form)
+
+
+# -- Code Route --------------------------------------------------------------------------------
+@app.route("/code", methods=["GET", "POST"])
+def getcode():
+	#form=DatabaseForm()
+	form = None
+	return render_template("getcode.html", form=form)
+
+
+# -- Imprint Route -----------------------------------------------------------------------------
+@app.route("/imprint", methods=["GET", "POST"])
+def imprint():
+	#form=DatabaseForm()
+	form = None
+	return render_template("imprint.html", form=form)
 
 ################################################################################################
 ### -- Run the App ------------------------------------------------------------------------- ###
