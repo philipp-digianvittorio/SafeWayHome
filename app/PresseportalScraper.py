@@ -4,7 +4,7 @@ import re
 import requests
 import time
 
-sleep_time = 0.5
+sleep_time = 0.2
 
 
 ################################################################################################
@@ -52,9 +52,6 @@ class RobotsTxt():
 
 
 
-#rp.check_scrape_permission("https://www.handelsblatt.com/ddhhdhdh/v_premium_not_allowed/8z89.html$", user_agent='*')
-
-
 ################################################################################################
 ### -- Check robots.txt -------------------------------------------------------------------- ###
 ################################################################################################
@@ -84,14 +81,14 @@ class PresseportalScraper():
                     type in tag.get("title") for type in self.headquarter_types):
                 url, id = tag.get("href").rsplit("/", 1)
                 title = re.search(r'[A-Z].*', tag.get("title")).group()
-                headquarters.append({'ID': str(id), 'URL': url, 'Name': title})
+                headquarters.append({'id': str(id), 'url': url, 'name': title})
             else:
                 next
 
         return headquarters
 
     def get_articles(self, hq_data):
-        URL_hq_newsroom = self.URL_main + 'nr/' + hq_data["ID"]
+        URL_hq_newsroom = self.URL_main + 'nr/' + hq_data["id"]
         articles = list()
 
         request = requests.get(URL_hq_newsroom)
@@ -101,22 +98,22 @@ class PresseportalScraper():
             if self.article_pattern in tag.get("href"):
                 url, _, id = tag.get("href").rsplit("/", 2)
                 title = tag.get("title")
-                print(self.URL_main + 'pm/' + hq_data['ID'] + '/' + str(id))
                 date, text, kw_location, kw_topic = self.scrape_article(
-                    self.URL_main + 'pm/' + hq_data['ID'] + '/' + str(id))
-                articles.append({'Preasidium': hq_data['Name'],
-                                 'ID_preasidium': hq_data['ID'],
-                                 'Headline': title,
-                                 'ID': id,
-                                 'URL': url,
-                                 'Date': date,
-                                 'Article': text,
-                                 'Keywords_location': kw_location,
-                                 'Keywords_topic': kw_topic})
+                    self.URL_main + 'pm/' + hq_data['id'] + '/' + str(id))
+                articles.append({'hq_name': hq_data['name'],
+                                 'hq_id': hq_data['id'],
+                                 'headline': title,
+                                 'id': id,
+                                 'url': url,
+                                 'date': date,
+                                 'article': text,
+                                 'kw_location': kw_location,
+                                 'kw_topic': kw_topic})
             else:
                 next
 
         return articles
+
 
     def scrape_article(self, article_url):
         request = requests.get(article_url)

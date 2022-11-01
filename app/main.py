@@ -18,8 +18,11 @@ from wtforms import SubmitField
 
 # -- import database modules
 from sqlalchemy import inspect
-from FlaskDataBase import db, create_database_mysql, drop_database_mysql, initialize_database, insert_data, update_data, mysql_pw
+from FlaskDataBase import db, create_database_mysql, drop_database_mysql, initialize_database, db_select, db_insert, db_update, mysql_pw
 
+
+# -- import additional scripts
+from PresseportalScraper import PresseportalScraper
 
 # -- Initialize App ----------------------------------------------------------------------------
 app = Flask(__name__)
@@ -87,7 +90,15 @@ def upload():
 	else:
 		pass
 	# code here
-	db_articles = [{"title": "title 1", "text": "blad ajdnfa wjf weonf oawefw o "}, {"title": "title 2", "text": "blad ajdnfa wjf weonf oawefw o "}]
+	if len(db_select("Articles")) == 0:
+		sc = PresseportalScraper()
+		hq = sc.get_police_headquarters()
+		articles = sc.get_articles(hq[0])
+		res = db_insert("Headquarters", hq)
+		res = db_insert("Articles", articles)
+		flash("Data scraped successfully", "info")
+	db_articles = db_select("Articles")
+	#db_articles = [{"title": "title 1", "text": "blad ajdnfa wjf weonf oawefw o "}, {"title": "title 2", "text": "blad ajdnfa wjf weonf oawefw o "}]
 	return render_template("database.html", db_articles = db_articles)
 
 

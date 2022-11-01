@@ -1,5 +1,5 @@
 
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy, inspect
 from sqlalchemy.pool import NullPool
 from sqlalchemy.dialects import mysql
 from datetime import datetime
@@ -14,6 +14,59 @@ mysql_pw = "celestial09#"
 ################################################################################################
 ### -- Define Database Tables -------------------------------------------------------------- ###
 ################################################################################################
+
+class Headquarters(db.Model):
+
+    # -- declare table name
+    __tablename__ = 'Headquarters'
+
+    # -- declare columns
+    id = db.Column(db.String(100), primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(200), nullable=False)
+
+    # -- return a list of table column names
+    @classmethod
+    def _get_columns(cls):
+        return [key for key, val in vars(cls).items() if not key.startswith("_")]
+
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+                for c in inspect(self).mapper.column_attrs}
+
+    # -- define print format
+    def __repr__(self):
+        return "{}({!r})".format(self.__class__.__name__, {key: val for key, val in self.__dict__.items() if key != "_sa_instance_state"})
+
+
+class Articles(db.Model):
+
+    # -- declare table name
+    __tablename__ = 'Articles'
+
+    # -- declare columns
+    id = db.Column(db.String(100), primary_key=True)
+    hq_id = db.Column(db.String(100), db.ForeignKey('Headquarters.id'), nullable=False)
+    hq_name = db.Column(db.String(100), db.ForeignKey('Headquarters.name'), nullable=False)
+    headline = db.Column(db.String(1000), nullable=False)
+    article = db.Column(db.String(50000), nullable=False)
+    url = db.Column(db.String(200), nullable=False)
+    date = db.Column(db.String(50), nullable=False)
+    kw_location = db.Column(db.String(1000))
+    kw_topic = db.Column(db.String(1000))
+
+    # -- return a list of table column names
+    @classmethod
+    def _get_columns(cls):
+        return [key for key, val in vars(cls).items() if not key.startswith("_")]
+
+    def _asdict(self):
+        return {c.key: getattr(self, c.key)
+                for c in inspect(self).mapper.column_attrs}
+
+    # -- define print format
+    def __repr__(self):
+        return "{}({!r})".format(self.__class__.__name__, {key: val for key, val in self.__dict__.items() if key != "_sa_instance_state"})
 
 
 
@@ -114,7 +167,15 @@ def drop_database_mysql(name, host="localhost", user="root", pw=mysql_pw):
 ### -- Modify Database  -------------------------------------------------------------------- ###
 ################################################################################################
 
-def insert_data(table_name, data):
+
+def db_select(table_name, **filter_cols):
+    my_table = db.metadata.tables[table_name]
+    with db.engine.connect() as conn:
+        res = conn.execute(my_table.select().filter_by(**filter_cols)).mappings().all()
+
+    return res
+
+def db_insert(table_name, data):
     my_table = db.metadata.tables[table_name]
     with db.engine.connect() as conn:
         res = conn.execute(my_table.insert(), data)
@@ -125,12 +186,14 @@ def insert_data(table_name, data):
     return res.lastrowid
 
 
-def update_data(table_name, data, **kwargs):
+def db_update(table_name, data, **filter_cols):
     my_table = db.metadata.tables[table_name]
     with db.engine.connect() as conn:
-        res = conn.execute(my_table.update().filter_by(**kwargs), data).rowcount
+        res = conn.execute(my_table.update().filter_by(**filter_cols), data).rowcount
         # new_entry = conn.execute(my_table.insert().returning(my_table), data).fetchall() # return inserted row, not supported by sqlite
     #db.session.commit()
     #db.session.close()
     db.engine.dispose()  # close the connection pool
     return res
+
+

@@ -7,11 +7,12 @@
             {% for a in db_articles %}
                 <div class="card">
                       <div class="card-body">
-                        <h5 class="card-title">{{a["title"]}}</h5>
-                        <p class="card-text" style="margin: 0">{{a["text"]}}</p>
+                        <h5 class="card-title">{{a["headline"]}}</h5>
+                        <p class="card-text" style="margin: 0">{{a["article"]}}</p>
 
                       </div>
                 </div>
+                <br>
             {% endfor %}
         </div>
     </div>
