@@ -93,3 +93,31 @@ for i in survey_streets.index[:100]:
         cropped_img.save(save_path)
     else:
             next
+         
+#%%
+# manually sort blurred pics 
+
+survey_streets['survey'] = 0
+
+for i in survey_streets.index[:100]:
+    file = "C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg'
+    if os.path.isfile(file) is True:
+        os.path.isfile(file)
+        survey_streets.loc[i,'survey'] = 1
+
+survey_streets_test = survey_streets.loc[survey_streets['survey'] == 1]
+
+
+# split pics in training and test data
+train_data = survey_streets_test.sample(frac=0.6, random_state=25)
+test_data = survey_streets_test.drop(train_data.index)
+#%%
+survey_streets_test['subsample'] = "training"
+for i in survey_streets_test.index:
+    if i in test_data.index:
+        survey_streets_test.loc[i, 'subsample'] = "test"
+        img = Image.open("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+        img.save("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\test\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+    else:
+        img = Image.open("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+        img.save("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\training\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
