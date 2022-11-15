@@ -25,7 +25,7 @@
   - format of column article should only contain text
   - how to get last page?
   
-  - extract class/type from geolocator.geocode()
+  - extract class/type from geolocator.geocode() -> DONE :)
 
 ## Useful Links
 ### Interface
