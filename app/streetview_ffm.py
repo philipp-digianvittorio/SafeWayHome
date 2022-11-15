@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Nov  8 13:08:39 2022
-
 @author: m-bau
 """
 
@@ -14,6 +13,10 @@ from geopy.geocoders import Nominatim
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 from PIL import ImageGrab, Image
+import os.path
+import math
+#%%
+path = "C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\"
 #%%
 
 # get street names of FFM
@@ -49,11 +52,13 @@ for a in streetnames['Address']:
 # merge datas
 df = pd.merge(df, streetnames, how='inner', on='Address')
 
+
+
 # save data
-df.to_csv("C:/Users/m-bau/Dokumente/Studium/Master/3. Semester/Data Science Project/webscraping/ffm.csv", index= False)
+df.to_csv(path + "ffm.csv", index= False)
 
 #%%
-df = pd.read_csv("C:/Users/m-bau/Dokumente/Studium/Master/3. Semester/Data Science Project/webscraping/ffm.csv")
+df = pd.read_csv(path + "ffm.csv")
 # create subset 
 
 np.random.seed(42)
@@ -74,14 +79,14 @@ for i in survey_streets.index[100:]:
 
     # take screenshot and save it
     snapshot = ImageGrab.grab()
-    save_path = "C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg'
+    save_path = path + "pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg'
     snapshot.save(save_path)
     
 
 #%%
 # Crop screenshots
 for i in survey_streets.index[:100]:
-    img = Image.open("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+    img = Image.open(path + "\\pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
     if len(img.fp.read()) > 100000:
         area = (200, # rigth
                 350, # upper
@@ -89,18 +94,19 @@ for i in survey_streets.index[:100]:
                 1200) # lower
         cropped_img = img.crop(area)
         cropped_img.show() 
-        save_path = "C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg'
+        save_path = path +"survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg'
         cropped_img.save(save_path)
     else:
             next
-         
+            
+            
 #%%
-# manually sort blurred pics 
+# manually sort blurred pics
 
 survey_streets['survey'] = 0
 
 for i in survey_streets.index[:100]:
-    file = "C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg'
+    file = path + "survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg'
     if os.path.isfile(file) is True:
         os.path.isfile(file)
         survey_streets.loc[i,'survey'] = 1
@@ -116,8 +122,13 @@ survey_streets_test['subsample'] = "training"
 for i in survey_streets_test.index:
     if i in test_data.index:
         survey_streets_test.loc[i, 'subsample'] = "test"
-        img = Image.open("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
-        img.save("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\test\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+        img = Image.open(path + "survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+        img.save(path + "test\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
     else:
-        img = Image.open("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
-        img.save("C:\\Users\\m-bau\\Dokumente\\Studium\\Master\\3. Semester\\Data Science Project\\webscraping\\training\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+        img = Image.open(path + "survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+        img.save(path + "training\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
+  
+
+
+
+
