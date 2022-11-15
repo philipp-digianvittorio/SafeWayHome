@@ -128,7 +128,16 @@ for i in survey_streets_test.index:
         img = Image.open(path + "survey_pics\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
         img.save(path + "training\\" + survey_streets.loc[i]['Straßenname'] + '_' + survey_streets.loc[i]['Postleitzahl'].astype(str) + '.jpeg')
   
+#%%
+# Add street types and classes from OSM
+geolocator = Nominatim(user_agent="project", timeout=10)
 
-
-
-
+i = 0
+for a in df['Address']:
+    location = geolocator.geocode(a, timeout=3)
+    if location is not None:
+        df.loc[i, 'class'] = location.raw['class']
+        df.loc[i, 'type'] = location.raw['osm_type']
+    else:
+        next
+    i = i + 1
