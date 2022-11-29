@@ -19,7 +19,7 @@ from wtforms import SubmitField
 # -- import database modules
 from sqlalchemy import inspect
 from FlaskDataBase import db, create_database_mysql, drop_database_mysql, initialize_database, db_select, db_insert, db_update, mysql_pw
-
+from OSMConnection import get_police_coords
 
 # -- import additional scripts
 from PresseportalScraper import PresseportalScraper
@@ -65,17 +65,32 @@ class DataBaseForm(FlaskForm):
 # -- Home Route --------------------------------------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def my_func():
-	#form=DatabaseForm()
-	form = None
-	'''
-	if form.validate_on_submit():
-		pass
-	# code here
-	else:
-		pass
-		# other code
-	'''
-	return render_template("index.html", form=form)
+    if request.method == "POST":
+        # Get shops data from OpenStreetMap
+        polices = get_police_coords(request.form["lat"], request.form["lon"])
+
+        # Initialize variables
+        id_counter = 0
+        markers = ''
+        for node in polices.nodes:
+
+            # Create unique ID for each marker
+            idd = 'pol' + str(id_counter)
+            id_counter += 1
+
+
+            # Create the marker and its pop-up for each shop
+            markers += "var {idd} = L.marker([{latitude}, {longitude}]);\
+                        {idd}.addTo(map);".format(idd=idd, latitude=node.lat,\
+                                                                                     longitude=node.lon)
+
+        # Render the page with the map
+        return render_template('results.html', markers=markers, lat=request.form["lat"], lon=request.form["lon"])
+
+
+    else:
+        # Render the input form
+        return render_template('index.html')
 
 
 # -- Database Route ----------------------------------------------------------------------------
@@ -93,7 +108,7 @@ def upload():
 	if len(db_select("Articles")) == 0:
 		sc = PresseportalScraper()
 		hq = sc.get_police_headquarters()
-		articles = sc.get_articles(hq[0])
+		articles = sc.get_articles(hq[89])
 		res = db_insert("Headquarters", hq)
 		res = db_insert("Articles", articles)
 		flash("Data scraped successfully", "info")

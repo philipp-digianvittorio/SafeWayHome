@@ -1,13 +1,12 @@
 import overpy
 
 
-def get_shops(latitude, longitude):
+def get_police_coords(latitude, longitude):
     # Initialize the API
     api = overpy.Overpass()
 
     # Define the query
-    query = """(node["amenity"="bar"](around:500,{lat},{lon});
-               node["amenity"="police"](around:500,{lat},{lon});
+    query = """(node["amenity"="police"](around:2000,{lat},{lon});
             );out;
             """.format(lat=latitude, lon=longitude)
     # Call the API
