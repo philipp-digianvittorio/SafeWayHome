@@ -1,17 +1,41 @@
-<html>
-<head>
-    <link rel="stylesheet" href="static/style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
-</head>
-<body>
-    <div id="map"></div>
+{% extends "base.html" %}
 
+{% block content %}
+    <br>
+
+    <div class="row">
+        <form method="post" action=".">
+        <label><p>Latitude</p></label>
+        <input name="lat">
+
+        <label><p>Longitude</p></label>
+        <input name="lon">
+
+        <input type="submit" value="Display shops" id="button">
+        </form>
+    </div>
+
+    <br>
+
+    <div id = "map" style = "width: 900px; height: 580px"></div>
+    <script src = "http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([{{lat}}, {{lon}}], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors'}).addTo(map);
+     // Creating map options, insert coordinates
+     var mapOptions = {
+        center: [50.115459, 8.679118],
+        zoom: 13
+     }
 
-        {{markers|safe}}
+     // Creating a map object
+     var map = L.map('map').setView([{{lat}}, {{lon}}], 16);
+
+     // Creating a Layer object
+     var layer = new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+
+     // Adding layer to the map
+     map.addLayer(layer);
+
+	{{markers|safe}}
     </script>
-</body>
-</html>
+
+{% endblock %}
