@@ -11,6 +11,9 @@
 ## Next steps/Tasks (due 18.11.22)
 - Maren/Stella: set up and run survey
 - Philipp: try out new deep learning tools
+- write function which finds safest route
+- add plotly map into app
+- use start and destination from input boxes to compute route
 
 ## Open Questions/Issues
 - classification: 
