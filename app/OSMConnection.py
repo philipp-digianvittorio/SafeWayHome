@@ -6,7 +6,7 @@ def get_police_coords(latitude, longitude):
     api = overpy.Overpass()
 
     # Define the query
-    query = """(node["amenity"="police"](around:2000,{lat},{lon});
+    query = """(node["amenity"="police"](around:13000,{lat},{lon});
             );out;
             """.format(lat=latitude, lon=longitude)
     # Call the API
