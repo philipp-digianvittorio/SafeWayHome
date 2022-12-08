@@ -24,6 +24,21 @@ from OSMConnection import get_police_coords
 # -- import additional scripts
 from PresseportalScraper import PresseportalScraper
 
+# -- import plot modules
+import json
+import pandas as pd
+import numpy as np
+import plotly
+import plotly.express as px
+import osmnx as ox
+import taxicab as tc
+import networkx as nx
+import plotly.graph_objects as go
+import plotly.io as io
+#io.renderers.default='browser'
+
+from compute_plot_route import plot_route, node_list_to_path_short
+
 # -- Initialize App ----------------------------------------------------------------------------
 app = Flask(__name__)
 
@@ -83,14 +98,53 @@ def my_func():
             markers += "var {idd} = L.marker([{latitude}, {longitude}]);\
                         {idd}.addTo(map);".format(idd=idd, latitude=node.lat,\
                                                                                      longitude=node.lon)
-
-        # Render the page with the map
+    
+    
+    
         return render_template('results.html', markers=markers, lat=request.form["lat"], lon=request.form["lon"])
 
-
     else:
+          
         # Render the input form
         return render_template('index.html')
+
+
+# -- Plotly Testpage ------------------------------------------------------------------------
+@app.route("/map")
+def plotly_plot():
+    # Include plot
+    start = (50.110446, 8.681968) # Römer #{{}}
+    destination = (50.115452, 8.671515) # Oper #{{}}
+
+    # get OSM data around the start point
+    G = ox.graph_from_point(start, dist=3000, network_type='walk')
+    G = ox.speed.add_edge_speeds(G)
+    G = ox.speed.add_edge_travel_times(G)
+
+    # calculate shortest route using taxicab package
+    route = tc.distance.shortest_path(G, start, destination)
+
+    # remove distance from route
+    route_nodes = list(route)
+    route_nodes = route_nodes[1]
+
+        
+    lines = node_list_to_path_short(G, route_nodes)
+    long2 = []
+    lat2 = []
+    for i in range(len(lines)):
+        z = list(lines[i])
+        l1 = list(list(zip(*z))[0])
+        l2 = list(list(zip(*z))[1])
+        for j in range(len(l1)):
+            long2.append(l1[j])
+            lat2.append(l2[j])
+        
+    fig = plot_route(lat2, long2, start, destination)
+
+    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    
+    return render_template('index.html', graphJSON=graphJSON)
 
 
 # -- Database Route ----------------------------------------------------------------------------
