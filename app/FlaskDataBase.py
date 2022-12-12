@@ -1,5 +1,5 @@
 
-from flask_sqlalchemy import SQLAlchemy, inspect
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import NullPool
 from sqlalchemy.dialects import mysql
 from datetime import datetime
@@ -30,10 +30,6 @@ class Headquarters(db.Model):
     def _get_columns(cls):
         return [key for key, val in vars(cls).items() if not key.startswith("_")]
 
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-                for c in inspect(self).mapper.column_attrs}
-
     # -- define print format
     def __repr__(self):
         return "{}({!r})".format(self.__class__.__name__, {key: val for key, val in self.__dict__.items() if key != "_sa_instance_state"})
@@ -59,10 +55,6 @@ class Articles(db.Model):
     @classmethod
     def _get_columns(cls):
         return [key for key, val in vars(cls).items() if not key.startswith("_")]
-
-    def _asdict(self):
-        return {c.key: getattr(self, c.key)
-                for c in inspect(self).mapper.column_attrs}
 
     # -- define print format
     def __repr__(self):

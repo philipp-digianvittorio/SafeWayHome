@@ -9,35 +9,28 @@
 # pip install sqlalchemy
 
 # -- import flask modules
-from flask import Flask, render_template, send_from_directory, url_for, request, session, flash
-from flask_uploads import UploadSet, IMAGES, configure_uploads
+from flask import Flask, render_template, request, flash
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import SubmitField
 
 
 # -- import database modules
 from sqlalchemy import inspect
-from FlaskDataBase import db, create_database_mysql, drop_database_mysql, initialize_database, db_select, db_insert, db_update, mysql_pw
-from OSMConnection import get_police_coords
+from app.FlaskDataBase import db, initialize_database, db_select, db_insert
 
 # -- import additional scripts
-from PresseportalScraper import PresseportalScraper
+from db_update.PresseportalScraper import PresseportalScraper
 
 # -- import plot modules
 import json
-import pandas as pd
-import numpy as np
 import plotly
-import plotly.express as px
 import osmnx as ox
 import taxicab as tc
-import networkx as nx
-import plotly.graph_objects as go
-import plotly.io as io
+from app.OSMConnection import get_police_coords
+from app.compute_plot_route import plot_route, node_list_to_path_short
+
 #io.renderers.default='browser'
 
-from compute_plot_route import plot_route, node_list_to_path_short
 
 # -- Initialize App ----------------------------------------------------------------------------
 app = Flask(__name__)
@@ -47,7 +40,7 @@ app = Flask(__name__)
 db_name = "db_name"  # "mysql_db"
 
 # -- initialize sqlite database
-initialize_database(app=app, db_uri=f"sqlite:///{db_name}.db")
+initialize_database(app=app, db_uri=f"sqlite:///app/instance/{db_name}.db")
 
 # -- initialize mysql database
 #create_database_mysql(name=db_name)  # mysql
