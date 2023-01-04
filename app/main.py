@@ -16,18 +16,19 @@ from wtforms import SubmitField
 
 # -- import database modules
 from sqlalchemy import inspect
-from app.FlaskDataBase import db, initialize_database, db_select, db_insert
+from scripts.FlaskDataBase import db, initialize_database, db_select, db_insert
 
 # -- import additional scripts
-from db_update.PresseportalScraper import PresseportalScraper
+from settings import DATABASE_URL
+from update_database.scripts.PresseportalScraper import PresseportalScraper
 
 # -- import plot modules
 import json
 import plotly
 import osmnx as ox
 import taxicab as tc
-from app.OSMConnection import get_police_coords
-from app.compute_plot_route import plot_route, node_list_to_path_short
+from scripts.OSMConnection import get_police_coords
+from scripts.compute_plot_route import plot_route, node_list_to_path_short
 
 #io.renderers.default='browser'
 
@@ -40,7 +41,7 @@ app = Flask(__name__)
 db_name = "db_name"  # "mysql_db"
 
 # -- initialize sqlite database
-initialize_database(app=app, db_uri=f"sqlite:///app/instance/{db_name}.db")
+initialize_database(app=app, db_uri=DATABASE_URL)
 
 # -- initialize mysql database
 #create_database_mysql(name=db_name)  # mysql
@@ -57,7 +58,7 @@ app.config["SECRET_KEY"] = "slafnlanlskjfkjafkjebfkjjkebfpqfeh3737664aiq4893hckc
 ### -- Define FlaskForms ------------------------------------------------------------------- ###
 ################################################################################################
 
-# -- Database Form --------------------------------------------------------------------------
+# -- Database Form -----------------------------------------------------------------------------
 class DataBaseForm(FlaskForm):
 
 	submit = SubmitField("Load Database Data")
@@ -91,9 +92,9 @@ def my_func():
             markers += "var {idd} = L.marker([{latitude}, {longitude}]);\
                         {idd}.addTo(map);".format(idd=idd, latitude=node.lat,\
                                                                                      longitude=node.lon)
-    
-    
-    
+
+
+
         return render_template('results.html', markers=markers, lat=request.form["lat"], lon=request.form["lon"])
 
     else:
@@ -121,7 +122,7 @@ def plotly_plot():
     route_nodes = list(route)
     route_nodes = route_nodes[1]
 
-        
+
     lines = node_list_to_path_short(G, route_nodes)
     long2 = []
     lat2 = []
@@ -132,11 +133,11 @@ def plotly_plot():
         for j in range(len(l1)):
             long2.append(l1[j])
             lat2.append(l2[j])
-        
+
     fig = plot_route(lat2, long2, start, destination)
 
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-    
+
     return render_template('index.html', graphJSON=graphJSON)
 
 
@@ -155,7 +156,7 @@ def upload():
 	if len(db_select("Articles")) == 0:
 		sc = PresseportalScraper()
 		hq = sc.get_police_headquarters()
-		articles = sc.get_articles(hq[89])
+		articles = sc.get_articles(hq[89], max_articles=30)
 		res = db_insert("Headquarters", hq)
 		res = db_insert("Articles", articles)
 		flash("Data scraped successfully", "info")
@@ -191,5 +192,5 @@ def imprint():
 ### -- Run the App ------------------------------------------------------------------------- ###
 ################################################################################################
 if __name__ == "__main__":
-	app.run(debug=True)
+    app.run(debug=False)
 
