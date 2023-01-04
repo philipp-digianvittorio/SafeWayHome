@@ -2,28 +2,40 @@
 
 {% block content %}
     <br>
+    <div class="container position-relative">
+        <div class="container position-relative">
+            <div class="row">
+                <div class="col-12">
+                    <div id = "map" class="position-relative" style = "width: 100%; height: 100vh;"></div>
+                </div>
+            </div>
+        </div>
 
-    <div class="row">
-        <form method="post" action=".">
-        <label><p>Latitude</p></label>
-        <input name="lat">
+        <div class="container position-absolute top-0">
+            <div class="row">
+                <div class="col-10 offset-1 mt-5">
+                    <div class="card text-center" style="background: rgba(255, 255, 255, 0.8)">
+                        <div class="card-body">
+                            <h5 class="card-title">Enter your Route</h5>
 
-        <label><p>Longitude</p></label>
-        <input name="lon">
+                            <form method="post" action=".">
+                                <div class="input-group mb-3">
+                                    <input class="form-control" placeholder="start">
+                                    <button class="btn btn-secondary" type="button" id="button-addon2"><span class="bi bi-geo-alt-fill"></span></button>
+                                </div>
+                                <div class="mb-3">
+                                    <input class="form-control" placeholder="destination">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Show Routes</button>
+                            </form>
 
-        <label><p>Start</p></label>
-        <input name="start">
-
-        <label><p>Destination</p></label>
-        <input name="destination">
-
-        <input type="submit" value="Display police" id="button">
-        </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <br>
-
-    <div id = "map" style = "width: 900px; height: 580px"></div>
     <script src = "http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
     <script>
      // Creating map options, insert coordinates
@@ -42,7 +54,7 @@
      map.addLayer(layer);
     </script>
 
-     // Plotly plot
+
     <div id='chart' class='chart' style = "width: 900px; height: 580px"></div>
     <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
     <script type='text/javascript'>
