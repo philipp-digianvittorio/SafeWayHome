@@ -27,10 +27,24 @@ import json
 import plotly
 import osmnx as ox
 import taxicab as tc
-from scripts.OSMConnection import get_police_coords
-from scripts.compute_plot_route import plot_route, node_list_to_path_short
+#from scripts.OSMConnection import get_police_coords
+#from scripts.compute_plot_route import plot_route, node_list_to_path_short
 
 #io.renderers.default='browser'
+
+
+from geopy.geocoders import Nominatim
+
+
+def get_lat_lon(address):
+    # get coordinates of streets
+    try:
+        geolocator = Nominatim(user_agent="tutorial")
+        location = geolocator.geocode(address, timeout=3).raw
+    except:
+        return None, None
+
+    return location["lat"], location["lon"]
 
 
 # -- Initialize App ----------------------------------------------------------------------------
@@ -63,8 +77,8 @@ class DataBaseForm(FlaskForm):
 
 	submit = SubmitField("Load Database Data")
 
-  
-  
+
+
 
 ################################################################################################
 ### -- Define App Routes ------------------------------------------------------------------- ###
@@ -75,32 +89,34 @@ class DataBaseForm(FlaskForm):
 @app.route("/", methods=["GET", "POST"])
 def my_func():
     if request.method == "POST":
-        # Get shops data from OpenStreetMap
-        polices = get_police_coords(request.form["lat"], request.form["lon"])
+        print(request.form)
 
-        # Initialize variables
-        id_counter = 0
-        markers = ''
-        for node in polices.nodes:
+        # -- get destination coordinates
+        if request.form["destination_loc"] != "":
+            print(request.form["destination_loc"])
+            dest_coords = get_lat_lon(request.form["destination_loc"])
 
-            # Create unique ID for each marker
-            idd = 'pol' + str(id_counter)
-            id_counter += 1
+        # -- get start coordinates
+        if (request.form["start_loc"] == "Mein Standort") and (request.form["user_position"] != ""):
+            start_coords = request.form["user_position"].split(",")
+        elif (request.form["start_loc"] != "Mein Standort") and (request.form["start_loc"] != ""):
+            start_coords = get_lat_lon(request.form["start_loc"])
 
+        route = {"start_coords": start_coords,
+                 "dest_coords": dest_coords,
+                 "valid_coords": True}
 
-            # Create the marker and its pop-up for each shop
-            markers += "var {idd} = L.marker([{latitude}, {longitude}]);\
-                        {idd}.addTo(map);".format(idd=idd, latitude=node.lat,\
-                                                                                     longitude=node.lon)
+        route = json.dumps(route)
 
-
-
-        return render_template('results.html', markers=markers, lat=request.form["lat"], lon=request.form["lon"])
+        return render_template('index.html', route=route)
 
     else:
-          
+        route = json.dumps({"start_coords": "NA",
+                             "dest_coords": "NA",
+                             "valid_coords": False})
+
         # Render the input form
-        return render_template('index.html')
+        return render_template('index.html', route=route)
 
 
 # -- Plotly Testpage ------------------------------------------------------------------------
@@ -194,3 +210,45 @@ def imprint():
 if __name__ == "__main__":
     app.run(debug=False)
 
+
+
+
+
+
+
+
+
+'''
+# -- Home Route --------------------------------------------------------------------------------
+@app.route("/", methods=["GET", "POST"])
+def my_func():
+    if request.method == "POST":
+        print(request.form)
+        # Get shops data from OpenStreetMap
+        polices = get_police_coords(request.form["lat"], request.form["lon"])
+
+        # Initialize variables
+        id_counter = 0
+        markers = ''
+        for node in polices.nodes:
+
+            # Create unique ID for each marker
+            idd = 'pol' + str(id_counter)
+            id_counter += 1
+
+
+            # Create the marker and its pop-up for each shop
+            markers += "var {idd} = L.marker([{latitude}, {longitude}]);\
+                        {idd}.addTo(map);".format(idd=idd, latitude=node.lat,\
+                                                                                     longitude=node.lon)
+
+
+
+        return render_template('results.html', markers=markers, lat=request.form["lat"], lon=request.form["lon"])
+
+    else:
+          
+        # Render the input form
+        return render_template('index.html')
+
+'''
