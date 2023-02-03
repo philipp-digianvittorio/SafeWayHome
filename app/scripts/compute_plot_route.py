@@ -46,13 +46,14 @@ def compute_linestring_length(ls):
     -------
     float : partial edge length distance in meters
     '''
+    from shapely.geometry import LineString
 
     if type(ls) == LineString:
         x, y = zip(*ls.coords)
 
         dist = 0
         for i in range(0, len(x) - 1):
-            dist += great_circle_vec(y[i], x[i], y[i + 1], x[i + 1])
+            dist += ox.distance.great_circle_vec(y[i], x[i], y[i + 1], x[i + 1])
         return dist
     else:
         return None
@@ -81,6 +82,7 @@ def get_edge_geometry(G, edge):
     the current edge is just a straight line. This results in an
     automatic assignment of edge end points.
     '''
+    from shapely.geometry import LineString
 
     if G.edges.get(edge, 0):
         if G.edges[edge].get('geometry', 0):
@@ -99,6 +101,7 @@ def compute_taxi_length(G, nx_route, orig_partial_edge, dest_partial_edge):
     '''
     Computes the route complete taxi route length
     '''
+    from osmnx.utils_graph import get_route_edge_attributes
 
     dist = 0
     if nx_route:
@@ -126,10 +129,17 @@ def get_best_path(G, orig_yx, dest_yx, weight, orig_edge=None, dest_edge=None):
     tuple
         (route_dist, route, orig_edge_p, dest_edge_p)
     '''
+    import networkx as nx
+    from shapely.geometry import Point
+    from shapely.geometry import LineString
+    from shapely.ops import substring
+    from osmnx import nearest_edges
+
 
     # determine nearest edges
-    if not orig_edge: orig_edge = nearest_edges(G, orig_yx[1], orig_yx[0])
-    if not dest_edge: dest_edge = nearest_edges(G, dest_yx[1], dest_yx[0])
+    if not orig_edge: orig_edge = ox.nearest_edges(G, orig_yx[1], orig_yx[0])
+    if not dest_edge: dest_edge = ox.nearest_edges(G, dest_yx[1], dest_yx[0])
+
 
     # routing along same edge
     if orig_edge == dest_edge:
@@ -143,7 +153,7 @@ def get_best_path(G, orig_yx, dest_yx, weight, orig_edge=None, dest_edge=None):
 
     # routing across multiple edges
     else:
-        nx_route = nx_shortest_path(G, orig_edge[0], dest_edge[0], weight)
+        nx_route = nx.shortest_path(G, orig_edge[0], dest_edge[0], weight)
         p_o, p_d = Point(orig_yx[::-1]), Point(dest_yx[::-1])
         orig_geo = get_edge_geometry(G, orig_edge)
         dest_geo = get_edge_geometry(G, dest_edge)
@@ -234,6 +244,7 @@ def plot_path(lat1, lon1, lat2, lon2):
     -------
     Nothing. Only shows the map.
     """
+
     # add the lines joining the nodes for the shortest path
     fig = go.Figure(go.Scattermapbox(
         name="Shortest Route",

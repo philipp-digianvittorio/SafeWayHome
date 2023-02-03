@@ -26,14 +26,21 @@ from update_database.scripts.PresseportalScraper import PresseportalScraper
 import json
 import plotly
 import osmnx as ox
-import taxicab as tc
+import numpy as np
+import pandas as pd
+#import taxicab as tc
 #from scripts.OSMConnection import get_police_coords
-#from scripts.compute_plot_route import plot_route, node_list_to_path_short
 
+#from scripts.compute_plot_route import plot_route, node_list_to_path_short
 #io.renderers.default='browser'
 
 
 from geopy.geocoders import Nominatim
+import geopy.distance
+import networkx as nx
+
+from scripts.compute_plot_route import compute_linestring_length, get_edge_geometry, compute_taxi_length, \
+    get_best_path, plot_path, node_list_to_path
 
 
 def get_lat_lon(address):
@@ -120,37 +127,57 @@ def my_func():
 
 
 # -- Plotly Testpage ------------------------------------------------------------------------
-@app.route("/map")
+@app.route("/map", methods=["GET", "POST"])
 def plotly_plot():
     # Include plot
-    start = (50.110446, 8.681968) # Römer #{{}}
-    destination = (50.115452, 8.671515) # Oper #{{}}
+    orig = (50.110446, 8.681968) # Römer #{{}}
+    dest = (50.115452, 8.671515) # Oper #{{}}
+
+    # compute middle and distance to origin
+    m = np.mean([orig, dest], axis=0)
+
+    # compute distance in kilometers
+    radius = geopy.distance.geodesic(orig, m).m + 100  # add 100m
 
     # get OSM data around the start point
-    G = ox.graph_from_point(start, dist=3000, network_type='walk')
-    G = ox.speed.add_edge_speeds(G)
-    G = ox.speed.add_edge_travel_times(G)
+    G = ox.graph_from_point(m, dist=radius, network_type='walk')
 
-    # calculate shortest route using taxicab package
-    route = tc.distance.shortest_path(G, start, destination)
+    # get number of edges within radius
+    n_edges = len(list(G.edges(data=True)))
 
-    # remove distance from route
-    route_nodes = list(route)
-    route_nodes = route_nodes[1]
+    # get street from database
+    db_streets = pd.DataFrame(db_select("Streets"))
+
+    # loop over all edges
+    for i in range(0, n_edges):
+        nodea = list(G.edges(data=True))[i][0]  # get start node
+        nodeb = list(G.edges(data=True))[i][1]  # get end node
+
+        try:
+            creepiness_score = np.mean(
+                db_streets["score_neutral"].loc[db_streets["street"] == G.edges[(nodea, nodeb, 0)]["name"]])
+
+            # in case of duplicates choose first element
+            G.edges[(nodea, nodeb, 0)]["score"] = creepiness_score
+
+        except Exception:
+            # street without street names should get score of the district they are located.
+            # How to get district using coordinates
+            G.edges[(nodea, nodeb, 0)]["score"] = 3  # insert average score
+
+            pass
 
 
-    lines = node_list_to_path_short(G, route_nodes)
-    long2 = []
-    lat2 = []
-    for i in range(len(lines)):
-        z = list(lines[i])
-        l1 = list(list(zip(*z))[0])
-        l2 = list(list(zip(*z))[1])
-        for j in range(len(l1)):
-            long2.append(l1[j])
-            lat2.append(l2[j])
 
-    fig = plot_route(lat2, long2, start, destination)
+    route_short = get_best_path(G, orig, dest, 'length')
+    route_safe = get_best_path(G, orig, dest, 'score')
+
+    lon_short, lat_short = node_list_to_path(G, route_short)
+    lon_safe, lat_safe = node_list_to_path(G, route_safe)
+
+    fig = plot_path(lat_short, lon_short, lat_safe, lon_safe)
+
+    #fig = plot_route(lat2, long2, start, destination)
 
     graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
