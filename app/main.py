@@ -37,6 +37,8 @@ import pandas as pd
 
 from geopy.geocoders import Nominatim
 import geopy.distance
+from shapely.geometry import Point
+import geopandas as gpd
 import networkx as nx
 
 from scripts.compute_plot_route import compute_linestring_length, get_edge_geometry, compute_taxi_length, \
@@ -147,6 +149,10 @@ def plotly_plot():
 
     # get street from database
     db_streets = pd.DataFrame(db_select("Streets"))
+    db_district = db_streets.groupby(['district']).agg("mean")
+
+    # read in json file for district allocation
+    ffm_geojson = gpd.read_file('districts.json').explode()
 
     # loop over all edges
     for i in range(0, n_edges):
@@ -161,9 +167,13 @@ def plotly_plot():
             G.edges[(nodea, nodeb, 0)]["score"] = creepiness_score
 
         except Exception:
-            # street without street names should get score of the district they are located.
-            # How to get district using coordinates
-            G.edges[(nodea, nodeb, 0)]["score"] = 3  # insert average score
+            # street without street names get score of the district they are located.
+            for i, polygon in enumerate(ffm_geojson["geometry"]):
+                point = Point(G.nodes[nodea]['x'], G.nodes[nodea]['y'])
+                if point.within(polygon):
+                    creepiness_score = db_district["score_neutral"].loc[ffm_geojson["name"].iloc[i]]
+                    print(creepiness_score)
+                    G.edges[(nodea, nodeb, 0)]["score"] = creepiness_score
 
             pass
 
