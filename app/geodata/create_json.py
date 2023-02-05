@@ -8,7 +8,7 @@ gdf = ox.geocode_to_gdf("Frankfurt") # get boundaries of FFM
 parks = ox.geometries.geometries_from_polygon(gdf['geometry'][0], {'leisure': 'park'})
 parks_save = parks.applymap(lambda x: str(x) if isinstance(x, list) else x)
 parks_final = gpd.clip(parks_save, gdf)
-parks_final.to_file("parks.geojson", driver="GeoJSON")
+parks_final.to_file("parks.json")
 
 # plot parks
 fig, ax = plt.subplots(figsize = (8,8))
@@ -20,7 +20,7 @@ plt.show()
 industrial = ox.geometries.geometries_from_polygon(gdf['geometry'][0], {'landuse': 'industrial'})
 industrial_save = industrial.applymap(lambda x: str(x) if isinstance(x, list) else x)
 industrial_final = gpd.clip(industrial_save, gdf)
-industrial_final.to_file("industrial.geojson", driver="GeoJSON")
+industrial_final.to_file("industrial.json")
 
 # plot industrial areas
 fig, ax = plt.subplots(figsize = (8,8))
