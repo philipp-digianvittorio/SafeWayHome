@@ -384,7 +384,27 @@ def node_list_to_path(G, route):
 
     return lon, lat
 
-    # getting the list of coordinates from the route 
+def get_creepiness_score(a, b): # may be adapted using SQL syntax
+
+    try:
+        creepiness_score = np.mean(db_streets["score_neutral"].loc[db_streets["street"] == G.edges[(nodea, nodeb, 0)]["name"]])
+
+    # for edges without street name
+    except Exception:
+        for j, polygon in enumerate(ffm_geojson["geometry"]):
+            point = Point(G.nodes[nodea]['x'], G.nodes[nodea]['y'])
+            if point.within(polygon):
+                creepiness_score = db_district["score_neutral"].loc[ffm_geojson["name"].iloc[j]]
+
+    # for edges with street name not in database
+    if pd.isna(creepiness_score):
+        for j, polygon in enumerate(ffm_geojson["geometry"]):
+            point = Point(G.nodes[nodea]['x'], G.nodes[nodea]['y'])
+            if point.within(polygon):
+                creepiness_score = db_district["score_neutral"].loc[ffm_geojson["name"].iloc[j]]
+    return creepiness_score
+
+    # getting the list of coordinates from the route
 #lines = node_list_to_path_short(G, route_nodes)
 #long2 = []
 #lat2 = []

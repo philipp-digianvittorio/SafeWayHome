@@ -42,7 +42,7 @@ import geopandas as gpd
 import networkx as nx
 
 from scripts.compute_plot_route import compute_linestring_length, get_edge_geometry, compute_taxi_length, \
-    get_best_path, plot_path, node_list_to_path
+    get_best_path, plot_path, node_list_to_path, get_creepiness_score
 
 
 def get_lat_lon(address):
@@ -156,28 +156,10 @@ def plotly_plot():
 
     # loop over all edges
     for i in range(0, n_edges):
-        nodea = list(G.edges(data=True))[i][0]  # get start node
-        nodeb = list(G.edges(data=True))[i][1]  # get end node
-
-        try:
-            creepiness_score = np.mean(
-                db_streets["score_neutral"].loc[db_streets["street"] == G.edges[(nodea, nodeb, 0)]["name"]])
-
-            # in case of duplicates choose first element
-            G.edges[(nodea, nodeb, 0)]["score"] = creepiness_score
-
-        except Exception:
-            # street without street names get score of the district they are located.
-            for i, polygon in enumerate(ffm_geojson["geometry"]):
-                point = Point(G.nodes[nodea]['x'], G.nodes[nodea]['y'])
-                if point.within(polygon):
-                    creepiness_score = db_district["score_neutral"].loc[ffm_geojson["name"].iloc[i]]
-                    print(creepiness_score)
-                    G.edges[(nodea, nodeb, 0)]["score"] = creepiness_score
-
-            pass
-
-
+        nodea, nodeb = list(G.edges(data=True))[i][0:2]
+        # may cause problems with districts as they are not yet in database
+        creepiness_score = get_creepiness_score(nodea, nodeb)
+        G.edges[(nodea, nodeb, 0)]["score"] = creepiness_score
 
     route_short = get_best_path(G, orig, dest, 'length')
     route_safe = get_best_path(G, orig, dest, 'score')
