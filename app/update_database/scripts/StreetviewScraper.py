@@ -93,7 +93,7 @@ class StreetviewScraper():
         except:
             return None, None
 
-        return location["lat"], location["lon"]
+        return location["lat"], location["lon"], location['display_name'].split(', ')[-5:-4][0]
 
 
     def get_streetview_image(self, latitude, longitude):
