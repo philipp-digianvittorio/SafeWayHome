@@ -2,7 +2,21 @@ import geopandas as gpd
 import osmnx as ox 
 import matplotlib.pyplot as plt
 
-gdf = ox.geocode_to_gdf("Frankfurt") # get boundaries of FFM
+city = "Frankfurt"
+gdf = ox.geocode_to_gdf(city) # get boundaries of FFM
+
+# 0) Get polygons of districts
+
+districts = ox.geometries.geometries_from_place(city, {'place':'suburb'})
+
+for i in range(len(districts)):
+    gdf = ox.geocode_to_gdf(districts['name'][i] + "," + city)
+    gdf['name'] = districts['name'][i] # add district name as separate element
+    if i == 0:
+        district_polygons = gdf
+    else:
+        district_polygons = pd.concat([district_polygons, gdf])
+district_polygons.to_file("districts.json")
 
 # 1) Parks
 parks = ox.geometries.geometries_from_polygon(gdf['geometry'][0], {'leisure': 'park'})

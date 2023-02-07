@@ -53,7 +53,7 @@ def get_lat_lon(address):
     except:
         return None, None
 
-    return location["lat"], location["lon"]
+    return location["lat"], location["lon"], location['display_name'].split(', ')[-5:-4][0]
 
 
 # -- Initialize App ----------------------------------------------------------------------------
@@ -152,7 +152,7 @@ def plotly_plot():
     db_district = db_streets.groupby(['district']).agg("mean")
 
     # read in json file for district allocation
-    ffm_geojson = gpd.read_file('districts.json').explode()
+    ffm_geojson = gpd.read_file('geodata/districts.json')
 
     # loop over all edges
     for i in range(0, n_edges):
