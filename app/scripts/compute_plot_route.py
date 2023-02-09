@@ -404,6 +404,24 @@ def get_creepiness_score(a, b): # may be adapted using SQL syntax
                 creepiness_score = db_district["score_neutral"].loc[ffm_geojson["name"].iloc[j]]
     return creepiness_score
 
+    def get_G(orig, dest, G_edges, G_nodes):
+        # define rectangular around route and add ~70 buffer
+        lat_min = np.min([orig[1], dest[1]]) - 0.001
+        lat_max = np.max([orig[1], dest[1]]) + 0.001
+        lon_min = np.min([orig[0], dest[0]]) - 0.001
+        lon_max = np.max([orig[0], dest[0]]) + 0.001
+
+        # filter relevant edges and nodes
+        selected_edges = [(x, y, z) for x, y, z in G_edges[0:200] if
+                          lat_min < z['lat'] < lat_max and lon_min < z['lon'] < lon_max]
+        selected_nodes = [(v, w) for v, w in G_nodes if lat_min < w['x'] < lat_max and lon_min < w['y'] < lon_max]
+
+        G = nx.MultiDiGraph()  # create MultiDiGraph object
+        G.add_edges_from(selected_edges)  # add edges in range of route
+        G.add_nodes_from(selected_nodes)  # add all nodes
+
+        return G
+
     # getting the list of coordinates from the route
 #lines = node_list_to_path_short(G, route_nodes)
 #long2 = []
