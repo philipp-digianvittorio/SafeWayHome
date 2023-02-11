@@ -85,11 +85,12 @@ class StreetviewScraper():
             return []
 
 
-    def get_lat_lon(self, country, city, street):
+    def get_lat_lon(self, location_string):
         # get coordinates of streets
         try:
             geolocator = Nominatim(user_agent="tutorial")
-            location = geolocator.geocode(", ".join([country, city, street]), timeout=3).raw
+            location = geolocator.geocode(location_string, timeout=3).raw
+            time.sleep(0.2)
         except:
             return None, None
 
@@ -112,7 +113,7 @@ class StreetviewScraper():
         if self.headless:
             self.driver.set_window_size(1920, 1080)
         self.driver.maximize_window()
-        self.driver.set_page_load_timeout(30)
+        self.driver.set_page_load_timeout(60)
 
         self.wait = WebDriverWait(self.driver, self.wait_seconds)
 

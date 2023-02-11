@@ -6,6 +6,7 @@ flask-restful
 wtforms
 flask-sqlalchemy
 sqlalchemy
+sqlalchemy-utils
 
 numpy
 pandas

@@ -66,5 +66,31 @@ for i in range(n_edges):
     creepiness_score = get_creepiness_score(nodea, nodeb)   
     G.edges[(nodea, nodeb, 0)]["score"] = creepiness_score
     
-
+a = ox.to_numpy_array(G)
+a["score"] = 1
+G = nx.from_pandas_edgelist(a, source="source", target="target")
+G.edges.data("score")
 ox.save_graphml(G, 'geodata/frankfurt_weighted.osm')
+a = nx.to_pandas_edgelist(G)
+G.edges[(162636,3832864476,0)]["score"] = 1
+
+nodes, edges = ox.graph_to_gdfs(G, nodes=True, edges=True)
+edges["score"] = 1
+G = ox.graph_from_gdfs(nodes, edges)
+
+edges.index
+
+G = ox.graph_from_place("Frankfurt", network_type='walk') # download raw geopatial data from OSM
+
+nodes, edges = ox.graph_to_gdfs(G, nodes=True, edges=True)
+
+db_nodes = nodes.to_dict('records')
+db_edges = edges.to_dict('records')
+
+res = db_insert("Nodes", db_nodes)
+res = db_insert("Edges", db_edges)
+
+G = ox.graph_from_gdfs(nodes, edges)
+
+
+

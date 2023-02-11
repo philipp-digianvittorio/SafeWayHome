@@ -1,47 +1,67 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <br>
-    <div class="container position-relative">
+<div class="d-flex flex-column h-100">
 
-        <div class="container">
-            <div class="row">
-                <div class="col-10 offset-1 mt-5">
-                    <div class="card text-center" style="background: rgba(255, 255, 255, 0.8)">
+    <div class="row">
+        <div class="col-12">
+            <div class="card text-center mb-2 mt-2" style="background: rgba(255, 255, 255, 0.8);">
+                <div class="card-body">
+                    <h5 class="card-title">Enter your Route</h5>
+
+                    <form method="post">
+                        <div class="input-group mb-3">
+                            <input id="start_loc" class="form-control" placeholder="start" value="" name="start_loc">
+                            <button onclick="trackLocation()" class="btn btn-secondary" type="button" id="button-addon2"><span class="bi bi-geo-alt-fill"></span></button>
+                        </div>
+
+                        <div class="mb-3 d-none">
+                            <input id="user_position" class="form-control" value="" name="user_position">
+                        </div>
+
+                        <div class="mb-3">
+                            <input id="destination_loc" class="form-control" placeholder="destination" name="destination_loc">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Show Routes</button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="row d-flex flex-column h-100">
+        <div class="col-12 h-100">
+            <div class="row d-flex flex-column h-100">
+                <div class="col-12 h-100">
+                    <div class="h-100" id="map" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <div class="row">
+            <div class="col-12">
+                {% if valid_coords == True %}
+                    <div class="card text-center" style="background: rgba(255, 255, 255, 0.8);">
                         <div class="card-body">
-                            <h5 class="card-title">Enter your Route</h5>
-
-                            <form method="post" action="#">
-                                <div class="input-group mb-3">
-                                    <input id="start_loc" class="form-control" placeholder="start" value="" name="start_loc">
-                                    <button onclick="trackLocation()" class="btn btn-secondary" type="button" id="button-addon2"><span class="bi bi-geo-alt-fill"></span></button>
+                            <div class="row">
+                                <div class="col-5">
+                                    <button type="submit" class="btn btn-primary" onClick="safeRoute()">Safe Route</button>
                                 </div>
-
-                                <div class="mb-3 d-none">
-                                    <input id="user_position" class="form-control" value="" name="user_position">
+                                <div class="col-5 offset-2">
+                                    <button type="submit" class="btn btn-secondary" onClick="fastRoute()">Short Route</button>
                                 </div>
-
-                                <div class="mb-3">
-                                    <input id="destination_loc" class="form-control" placeholder="destination" name="destination_loc">
-                                </div>
-                                <button type="submit" class="btn btn-primary">Show Routes</button>
-                            </form>
-
+                            </div>
                         </div>
                     </div>
-                </div>
+                {% endif %}
             </div>
         </div>
+</div>
 
-        <div class="container">
-            <div class="row">
-                <div class="col-12">
-                    <div id = "map" class="position-relative" style = "width: 100%; height: 100vh;"></div>
-                </div>
-            </div>
-        </div>
 
-    </div>
 
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
@@ -53,6 +73,14 @@
     const route = {{ route|safe }};
     console.log(route);
 
+    const grid = {{ grid|safe }};
+    console.log(grid);
+
+    const safe_route = {{ safe_route|safe }};
+    console.log(safe_route);
+
+    const short_route = {{ short_route|safe }};
+    console.log(short_route);
 
      window.onload = function() {
         document.getElementById('start_loc').value = '';
@@ -76,88 +104,107 @@
      L.Control.geocoder().addTo(map);
 
 
-     // ask user to enable location tracking
-     function trackLocation() {
+    // ask user to enable location tracking
+    function trackLocation() {
          if (!navigator.geolocation) {
             console.log("Your browser doesn't support geolocation feature!")
          } else {
             navigator.geolocation.getCurrentPosition(showSuccessMessage, showErrorMessage)
          };
-     }
+    }
 
-     function showSuccessMessage(position) {
+    function showSuccessMessage(position) {
         const start_loc = document.getElementById("start_loc")
         start_loc.value = "Mein Standort"
 
         const user_pos = document.getElementById("user_position")
         user_pos.value = position.coords.latitude + "," + position.coords.longitude
         console.log(document.getElementById("user_position").value)
-     }
+    }
 
-     function showErrorMessage() {
+    function showErrorMessage() {
         const start_loc = document.getElementById("start_loc");
         start_loc.value = "Standort nicht freigegeben";
         console.log("nicht freigegeben")
-     }
+    }
 
 
-     if (route["valid_coords"])  {
+    function safeRoute() {
+        if (!navigator.geolocation) {
+            console.log("Your browser doesn't support geolocation feature!")
+        } else {
+            map.removeLayer(shortR);
+            setInterval(() => {
+                navigator.geolocation.getCurrentPosition(getPosition)
+            }, 1000);
+        };
+    }
 
-        var marker_start = L.marker(route["start_coords"])
-        var marker_dest = L.marker(route["dest_coords"])
+    function shortRoute() {
+        if (!navigator.geolocation) {
+            console.log("Your browser doesn't support geolocation feature!")
+        } else {
+            map.removeLayer(safeR);
+            setInterval(() => {
+                navigator.geolocation.getCurrentPosition(getPosition)
+            }, 1000);
+        };
+    }
 
-        L.Routing.control({
-           waypoints:   [
-           L.latLng(route["start_coords"][0], route["start_coords"][1]),
-           L.latLng(route["dest_coords"][0], route["dest_coords"][1])
-           ]
-        }).addTo(map);
+    // location params
+    var circle, accuracy;
 
-        var featureGroup = L.featureGroup([marker_start, marker_dest]).addTo(map)
+    function getPosition(position) {
+        // console.log(position)
+        lat = position.coords.latitude
+        long = position.coords.longitude
+        accuracy = position.coords.accuracy
 
-        map.fitBounds(featureGroup.getBounds())
+        if (marker_start) {
+            map.removeLayer(marker_start)
+        }
 
-         //if (!navigator.geolocation) {
-         //   console.log("Your browser doesn't support geolocation feature!")
-         //} else {
-         //   setInterval(() => {
-         //       navigator.geolocation.getCurrentPosition(getPosition)
-         //   }, 1000);
-         //};
+        if (circle) {
+            map.removeLayer(circle)
+        }
 
-        // location params
-         var marker, circle, lat, long, accuracy;
+        marker_start = L.marker([lat, long]);
+        circle = L.circle([lat, long], { radius: accuracy });
 
-            function getPosition(position) {
-                // console.log(position)
-                lat = position.coords.latitude
-                long = position.coords.longitude
-                accuracy = position.coords.accuracy
+        var featureGroup = L.featureGroup([marker_start, circle]).addTo(map);
 
-                if (marker) {
-                    map.removeLayer(marker)
-                }
+        map.fitBounds(featureGroup.getBounds());
 
-                if (circle) {
-                    map.removeLayer(circle)
-                }
+    }
 
-                marker = L.marker([lat, long])
-                circle = L.circle([lat, long], { radius: accuracy })
 
-                var featureGroup = L.featureGroup([marker, circle]).addTo(map)
+    if (route["valid_coords"])  {
 
-                map.fitBounds(featureGroup.getBounds())
+        var marker_start = L.marker(route["start_coords"]);
+        var marker_dest = L.marker(route["dest_coords"]);
 
-                console.log("Your coordinate is: Lat: " + lat + " Long: " + long + " Accuracy: " + accuracy)
-            }
-     }
+        var safeR = L.polyline(safe_route, {"color": "green"});
+        var shortR = L.polyline(short_route, {"color": "red"});
+
+        var featureGroup = L.featureGroup([marker_start, marker_dest, safeR, shortR]).addTo(map);
+
+
+        for (let i = 0; i < grid.length; i++) {
+            L.rectangle([
+                                L.latLng(grid[i]["lat_min"], grid[i]["long_min"]),
+                                L.latLng(grid[i]["lat_max"], grid[i]["long_max"])
+                              ]).setStyle({fillColor: grid[i]["color"], fillOpacity: 0.3, stroke: false}).addTo(featureGroup);
+                          };
+
+        map.fitBounds(featureGroup.getBounds());
+
+    }
 
 
     </script>
 
 
-    <div id='chart' class='chart' style = "width: 900px; height: 580px"></div>
+    <!--<div id='chart' class='chart' style = "width: 900px; height: 580px"></div>-->
     <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
     <script type='text/javascript'>
     var graphs = {{graphJSON|safe}};
