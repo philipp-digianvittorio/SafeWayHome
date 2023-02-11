@@ -107,13 +107,13 @@ def get_district_park_industrial(db_edges):
         industrial_save = industrial.applymap(lambda x: str(x) if isinstance(x, list) else x)
         industrial_final = gpd.clip(industrial_save, gdf)
 
-    edges["district_u"] = edges["lat_long"].apply(
-        lambda x: get_district(x.split(", ")[0].split(" "), district_polygons))
-    edges["district_v"] = edges["lat_long"].apply(
-        lambda x: get_district(x.split(", ")[1].split(" "), district_polygons))
+        edges["district_u"] = edges["lat_long"].apply(
+            lambda x: get_district(x.split(", ")[0].split(" "), district_polygons))
+        edges["district_v"] = edges["lat_long"].apply(
+            lambda x: get_district(x.split(", ")[1].split(" "), district_polygons))
 
-    edges["park_flag"] = edges["lat_long"].apply(lambda x: is_within_any_polygon(x, parks_final))
-    edges["industrial_flag"] = edges["lat_long"].apply(lambda x: is_within_any_polygon(x, industrial_final))
+        edges["park_flag"] = edges["lat_long"].apply(lambda x: is_within_any_polygon(x, parks_final))
+        edges["industrial_flag"] = edges["lat_long"].apply(lambda x: is_within_any_polygon(x, industrial_final))
 
 
 def get_image_scores(db_edges, step=1):
