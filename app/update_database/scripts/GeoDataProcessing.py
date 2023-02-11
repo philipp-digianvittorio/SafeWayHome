@@ -4,6 +4,7 @@ import osmnx as ox
 from shapely import wkt
 import pandas as pd
 import geopandas as gpd
+from shapely.geometry import Point, Polygon
 
 from update_database.scripts.SQLAlchemyDB import db_select, db_insert, db_update, db_delete, Edges, Nodes
 from update_database.scripts.StreetviewScraper import StreetviewScraper, firefox_binary
@@ -12,7 +13,7 @@ from update_database.scripts.ImageClassification import score_image
 
 def geodata_to_df(country, city):
 
-    G = ox.graph_from_place(city, network_type='walk')  # download raw geopatial data from OSM
+    G = ox.graph_from_place(city, network_type='walk')  # download raw geospatial data from OSM
 
     nodes, edges = ox.graph_to_gdfs(G, nodes=True, edges=True)
     nodes["city"], edges["city"] = city, city
@@ -21,8 +22,8 @@ def geodata_to_df(country, city):
     edges["lat_long"] = edges["geometry"].apply(lambda x: re.sub(r'[^0-9., ]', "", str([re.sub(r'[^0-9. ]', '', str(i)) for i in list(zip(x.xy[1], x.xy[0]))])))
     edges["geometry"] = edges["geometry"].apply(lambda x: wkt.dumps(x))
 
-    #edges["district_u"] = edges["lat_long"].apply(lambda x: sc.get_lat_lon(x.split(", ")[0])[-1])
-    #edges["district_v"] = edges["lat_long"].apply(lambda x: sc.get_lat_lon(x.split(", ")[-1])[-1])
+    edges["district_u"] = None
+    edges["district_v"] = None
 
     edges["score_neutral"] = None
     edges["score_positive"] = None
@@ -57,6 +58,25 @@ def geodata_to_df(country, city):
 
     return nodes, edges
 
+def get_district(node, district_polygons):
+    point = Point(float(node[1]), float(node[0]))
+    polygon_index = district_polygons["geometry"].apply(point.within)
+    try:
+        return district_polygons['name'][polygon_index].iloc[0]
+    except Exception:
+        closest_polygon = None
+        closest_distance = float("inf")
+        for j, polygon in enumerate(district_polygons["geometry"]):
+            distance = point.distance(polygon)
+            closest_polygon = district_polygons['name'].iloc[j] if distance < closest_distance else closest_polygon
+            closest_distance = min(distance, closest_distance)
+        return closest_polygon
+    
+def is_within_any_polygon(edge, polygons):
+    start_point = Point(float(edge.split(", ")[0].split(" ")[1]), float(edge.split(", ")[0].split(" ")[0]))
+    end_point = Point(float(edge.split(", ")[1].split(" ")[1]), float(edge.split(", ")[1].split(" ")[0]))
+    polygon_index = polygons["geometry"].apply(lambda x: start_point.within(x) or end_point.within(x))
+    return any(polygon_index) 
 
 def get_district_park_industrial(db_edges):
 
@@ -86,6 +106,14 @@ def get_district_park_industrial(db_edges):
         industrial = ox.geometries.geometries_from_polygon(gdf['geometry'][0], {'landuse': 'industrial'})
         industrial_save = industrial.applymap(lambda x: str(x) if isinstance(x, list) else x)
         industrial_final = gpd.clip(industrial_save, gdf)
+
+    edges["district_u"] = edges["lat_long"].apply(
+        lambda x: get_district(x.split(", ")[0].split(" "), district_polygons))
+    edges["district_v"] = edges["lat_long"].apply(
+        lambda x: get_district(x.split(", ")[1].split(" "), district_polygons))
+
+    edges["park_flag"] = edges["lat_long"].apply(lambda x: is_within_any_polygon(x, parks_final))
+    edges["industrial_flag"] = edges["lat_long"].apply(lambda x: is_within_any_polygon(x, industrial_final))
 
 
 def get_image_scores(db_edges, step=1):
