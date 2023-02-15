@@ -16,7 +16,7 @@ from wtforms import SubmitField
 
 # -- import database modules
 from sqlalchemy import inspect, or_, and_
-from scripts.FlaskDataBase import db, initialize_database, create_database_mysql, db_select, db_insert, Headquarters, Nodes, Edges
+from scripts.FlaskDataBase import db, initialize_database, create_database_mysql, db_select, db_insert, Headquarters, Nodes, Edges, drop_database_mysql, mysql_pw
 
 # -- import additional scripts
 from settings import DATABASE_URL
@@ -24,7 +24,7 @@ from update_database.scripts.PresseportalScraper import PresseportalScraper
 
 # -- import plot modules
 import json
-import plotly
+#import plotly
 import osmnx as ox
 import numpy as np
 import pandas as pd
@@ -62,14 +62,15 @@ app = Flask(__name__)
 
 
 # -- Add Database Connection -------------------------------------------------------------------
-db_name = "db_name"  # "mysql_db"
-#db_name = "mysql_db"
+#db_name = "db_name"  # "mysql_db"
+db_name = "mysql_db"
 # -- initialize sqlite database
-initialize_database(app=app, db_uri=DATABASE_URL)
+#initialize_database(app=app, db_uri=DATABASE_URL)
 
 # -- initialize mysql database
-#create_database_mysql(name=db_name)  # mysql
-#initialize_database(app=app, db_uri=DATABASE_URL)  # mysql
+#drop_database_mysql(db_name, host="localhost", user="root", pw=mysql_pw)
+create_database_mysql(name=db_name)  # mysql
+initialize_database(app=app, db_uri=DATABASE_URL)  # mysql
 
 print(inspect(db.engine).get_table_names())
 
@@ -152,13 +153,19 @@ def my_func():
         dest_edge = ox.nearest_edges(G, dest_coords[1], dest_coords[0])
 
         path_safe = nx.shortest_path(G, start_edge[0], dest_edge[0], weight='weight_neutral')
-        path_short = nx.shortest_path(G, dest_edge[0], start_edge[0], weight='length')
+        path_short = nx.shortest_path(G, start_edge[0], dest_edge[0], weight='length')
 
         edge_nodes_safe = list(zip(path_safe[:-1], path_safe[1:], [0]*(len(path_safe)-1)))
         edge_nodes_short = list(zip(path_short[:-1], path_short[1:], [0] * (len(path_short) - 1)))
 
         lat_long_safe = [i for li in edges[~edges.index.duplicated(keep='first')].loc[edge_nodes_safe, "lat_long"].apply(lambda x: [(float(y.split(" ")[0]), float(y.split(" ")[1])) for y in x.split(", ")]).values.tolist() for i in li[:-1]]
         lat_long_short = [i for li in edges[~edges.index.duplicated(keep='first')].loc[edge_nodes_short, "lat_long"].apply(lambda x: [(float(y.split(" ")[0]), float(y.split(" ")[1])) for y in x.split(", ")]).values.tolist() for i in li[:-1]]
+
+        lat_long_safe.insert(0, start_coords)
+        lat_long_safe.append(dest_coords)
+
+        lat_long_short.insert(0, start_coords)
+        lat_long_short.append(dest_coords)
 
         print(lat_long_safe)
         print(lat_long_short)
@@ -175,7 +182,7 @@ def my_func():
         # Render the input form
         return render_template('index.html', valid_coords=valid_coords, route=route, grid=grid, safe_route=json.dumps([]), short_route=json.dumps([]))
 
-
+'''
 # -- Plotly Testpage ------------------------------------------------------------------------
 @app.route("/map", methods=["GET", "POST"])
 def plotly_plot():
@@ -223,7 +230,7 @@ def plotly_plot():
 
     return render_template('index.html', graphJSON=graphJSON)
 
-
+'''
 # -- Database Route ----------------------------------------------------------------------------
 @app.route("/database", methods=["GET", "POST"])
 def upload():
