@@ -9,9 +9,9 @@ from shapely.geometry import Point
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderQuotaExceeded, GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable
 
-from update_database.scripts.SQLAlchemyDB import db_select, db_insert, db_update, db_delete, Edges, Nodes
-from update_database.scripts.StreetviewScraper import StreetviewScraper, firefox_binary
-from update_database.scripts.ImageClassification import score_image
+from scripts.FlaskDataBase import db_select, db_insert, db_update, db_delete, Edges, Nodes
+from scripts.StreetviewScraper import StreetviewScraper, firefox_binary
+from scripts.ImageClassification import score_image
 
 
 def geodata_to_df(country, city):

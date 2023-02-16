@@ -11,15 +11,19 @@ sqlalchemy-utils
 numpy
 pandas
 geopy
+geopandas
+torch
+torchvision
 
-webbrowser
+selenium
 requests
 beautifulsoup4
 lxml
 html5lib
 
+pymysql
 mysql-connector-python
+cryptography
 pillow
-plotly
 
 
