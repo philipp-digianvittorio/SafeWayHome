@@ -20,7 +20,7 @@ This is why in our app the factual crime rate score gets weighted with 2/3 and t
 Additionally, parks and industrial areas get punished by an added point on the creepiness scale of 1 to 22.
 
 ## Interface
-Our interface is based on a flask app. When entering the app, the users location is retrieved automatically. Once the user puts in their desired location the safest and fastest route are displayed to choose from. Information on the length of the route and estimated time to arrival are displayed below the map.
+Our interface is based on a flask app. When entering the app, the users location is retrieved automatically. Once the user puts in their desired location the safest and fastest route are displayed to choose from. Especially unsafe areas are shaded red. Information on the length of the route and estimated time to arrival are displayed below the map.
 For an enhanced user experience in a second tab the user can manipulate the crime-to-perception ratio as well as turn off the punishment for parks and industrial areas.
 
 ## Possible Extensions
