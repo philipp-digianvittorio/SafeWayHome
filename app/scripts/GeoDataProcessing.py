@@ -175,7 +175,7 @@ def get_creepiness_score(db_edges, perception_weight=0.3, include_park=True, inc
     edges_crimes = pd.merge(edges[["country", "city", "u", "v", "key", "lat_long"]],
                             crimes_df[["u", "v", "key"] + RELEVANT_CRIMES],
                             how="left",
-                            on=["u", "v", "key"]).fillna(0)
+                            on=["u", "v", "key"]).drop_duplicates(subset=["country", "city", "u", "v", "key", "lat_long"]).fillna(0).reset_index(drop=True)
 
     edges_crimes[RELEVANT_CRIMES] = edges_crimes[RELEVANT_CRIMES] / edges_crimes.groupby(["country", "city"])[
         RELEVANT_CRIMES].transform("mean")

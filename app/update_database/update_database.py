@@ -4,7 +4,7 @@ from update_database.scripts.PresseportalScraper import PresseportalScraper
 from update_database.scripts.SQLAlchemyDB import db_select, db_insert, db_update
 from update_database.scripts.GeoDataProcessing import geodata_to_df, get_district_park_industrial, get_image_scores, get_creepiness_score, db_to_graph
 from update_database.scripts.TextClassification import article_to_crime_data
-import shapely
+
 
 # -- insert new cities
 '''
@@ -59,7 +59,7 @@ for hq in db_headquarters:
 
         crimes = list()
         G = db_to_graph([n for n in db_nodes if n["city"] in full_city_names], [e for e in db_edges if e["city"] in full_city_names])
-        for article in db_articles[3500:5000]:
+        for article in db_articles[2100:3500]:
             try:
                 c = article_to_crime_data(article)
                 print(c)
@@ -113,6 +113,28 @@ for (country, city) in new_cities:
 
 
 '''
+edges = pd.DataFrame(db_edges)
+articles = pd.read_excel("gpt_output_clean_new.xlsx")
+articles_edges = pd.merge(articles, edges,
+                          how="inner",
+                          left_on=["location"],
+                          right_on=["name"]).drop_duplicates(subset=["article_id", "location", "article"])
+articles_edges["lat"] = articles_edges["lat_long"].apply(lambda x: x.split(", ")[0].split(" ")[0])
+articles_edges["long"] = articles_edges["lat_long"].apply(lambda x: x.split(", ")[0].split(" ")[1])
+articles_edges["crime"] = articles_edges["crime"].apply(lambda x: eval(x)[0])
+articles_edges = articles_edges[articles_edges["crime"].isin(["Tötungsdelikt", "Sexualdelikt", "Körperverletzung", "Raub", "Diebstahl", "Drogendelikt"])].reset_index(drop=True)
+articles_edges[['tötungsdelikt', 'sexualdelikt', 'körperverletzung', 'raub', 'diebstahl', 'drogendelikt']] = False
+for col in ['tötungsdelikt', 'sexualdelikt', 'körperverletzung', 'raub', 'diebstahl', 'drogendelikt']:
+    articles_edges.loc[articles_edges["crime"].str.lower().str.contains(col), col] = True
+
+db_crimes = articles_edges[['u', 'v', 'key', 'country', 'city', 'street', 'district', 'lat', 'long', 'tötungsdelikt', 'sexualdelikt', 'körperverletzung', 'raub', 'diebstahl', 'drogendelikt']].to_dict("records")
+db_insert("Crimes", db_crimes)
+
+
+
+
+
+
 from shapely.ops import unary_union, polygonize
 from shapely import wkt
 from osmnx.geometries import MultiPolygon
