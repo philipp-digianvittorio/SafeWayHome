@@ -2,6 +2,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.pool import NullPool
 from sqlalchemy.dialects import mysql
+from sqlalchemy_utils import get_mapper
 from datetime import datetime
 import typing
 import mysql.connector
@@ -343,11 +344,14 @@ def db_insert(table_name, data):
     return res.lastrowid
 
 
-def db_update(table_name, data, filters=None):
+def db_update(table_name, data, filters=None, bulk_update=False):
     my_table = db.metadata.tables[table_name]
     with db.engine.connect() as conn:
         if filters:
             res = conn.execute(my_table.update().filter(*filters), data).rowcount
+        elif bulk_update:
+                res = db.session.bulk_update_mappings(get_mapper(my_table), data)
+                db.session.commit()
         else:
             res = conn.execute(my_table.update(), data).rowcount
     db.engine.dispose()  # close the connection pool

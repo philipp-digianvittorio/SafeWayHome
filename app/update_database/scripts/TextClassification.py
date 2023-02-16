@@ -1,11 +1,10 @@
 
 import re
 import requests
-from geopy.geocoders import Nominatim
-from datetime import datetime
+from update_database.scripts.GeoDataProcessing import get_lat_lon
 
 
-CHECKPOINT = "pdg/gpt2_ft_police_articles"
+CHECKPOINT = "pdg/gpt2_police_articles"
 BASE_URL = "https://api-inference.huggingface.co/models/"
 API_URL = BASE_URL + CHECKPOINT
 
@@ -53,7 +52,7 @@ def extract_crime_data(article):
 
     m = re.search(r'INDOORS: (.*?)\\n', output.text)
     if m:
-        indoors = m.groups()[0].strip()
+        indoors = False if m.groups()[0].strip() == "False" else True
 
     if not str(location) in article:
         location = None
@@ -61,23 +60,14 @@ def extract_crime_data(article):
     return crimes, location, indoors
 
 
-def get_lat_lon(country, city, street):
-    # get coordinates of streets
-    try:
-        geolocator = Nominatim(user_agent="tutorial")
-        location = geolocator.geocode(", ".join([country, city, street]), timeout=3).raw
-    except:
-        return None, None
-
-    return location["lat"], location["lon"]
-
-
 def article_to_crime_data(article):
 
     crimes, street, indoors = extract_crime_data(article["headline"] + "\n" + article["article"])
     print(crimes, street, indoors)
-    if crimes and street and not indoors:
+    if crimes and street:
+        print(crimes, street, indoors)
         lat, long = get_lat_lon(article["country"], article["city"], street)
+
         if lat and long:
             c = {"country": article["country"],
                  "city": article["city"],

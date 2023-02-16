@@ -2,9 +2,12 @@
 import re
 import osmnx as ox
 from shapely import wkt
+import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderQuotaExceeded, GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable
 
 from update_database.scripts.SQLAlchemyDB import db_select, db_insert, db_update, db_delete, Edges, Nodes
 from update_database.scripts.StreetviewScraper import StreetviewScraper, firefox_binary
@@ -87,15 +90,20 @@ def get_district_park_industrial(db_edges):
         districts = ox.geometries.geometries_from_place(city, {'place': 'suburb'})
 
         for i in range(len(districts)):
-            gdf = ox.geocode_to_gdf(districts['name'][i] + "," + city)
+
+            try:
+                gdf = ox.geocode_to_gdf(city + ", " + districts['name'][i])
+            except:
+                try:
+                    gdf = ox.geocode_to_gdf(city.split(" ")[0] + ", " + districts['name'][i])
+                except:
+                    gdf = ox.geocode_to_gdf(districts['name'][i])
+
             gdf['name'] = districts['name'][i]  # add district name as separate element
             if i == 0:
                 district_polygons = gdf
             else:
                 district_polygons = pd.concat([district_polygons, gdf])
-
-        # edges[edges["city"] == city]["district_u"]...
-        # edges[edges["city"] == city]["district_v"]...
 
         # 1) Parks
         parks = ox.geometries.geometries_from_polygon(gdf['geometry'][0], {'leisure': 'park'})
@@ -107,13 +115,15 @@ def get_district_park_industrial(db_edges):
         industrial_save = industrial.applymap(lambda x: str(x) if isinstance(x, list) else x)
         industrial_final = gpd.clip(industrial_save, gdf)
 
-        edges["district_u"] = edges["lat_long"].apply(
-            lambda x: get_district(x.split(", ")[0].split(" "), district_polygons))
-        edges["district_v"] = edges["lat_long"].apply(
-            lambda x: get_district(x.split(", ")[1].split(" "), district_polygons))
+        edges.loc[edges["city"] == city, "district_u"] = edges.loc[edges["city"] == city, "lat_long"].apply(lambda x: get_district(x.split(", ")[0].split(" "), district_polygons))
+        edges.loc[edges["city"] == city, "district_v"] = edges.loc[edges["city"] == city, "lat_long"].apply(lambda x: get_district(x.split(", ")[-1].split(" "), district_polygons))
 
-        edges["park_flag"] = edges["lat_long"].apply(lambda x: is_within_any_polygon(x, parks_final))
-        edges["industrial_flag"] = edges["lat_long"].apply(lambda x: is_within_any_polygon(x, industrial_final))
+        edges.loc[edges["city"] == city, "park_flag"] = edges.loc[edges["city"] == city, "lat_long"].apply(lambda x: is_within_any_polygon(x, parks_final))
+        edges.loc[edges["city"] == city, "industrial_flag"] = edges.loc[edges["city"] == city, "lat_long"].apply(lambda x: is_within_any_polygon(x, industrial_final))
+
+    db_edges = edges.to_dict('records')
+
+    return db_edges
 
 
 def get_image_scores(db_edges, step=1):
@@ -122,7 +132,7 @@ def get_image_scores(db_edges, step=1):
 
     for edge in db_edges[::step]:
 
-        edge["score_neutral"], edge["score_positive"], edge["score_very_positive"], edge["score_negative"], edge["score_very_negative"] = [None]*5
+        edge["score_neutral"], edge["score_positive"], edge["score_very_positive"], edge["score_negative"], edge["score_very_negative"] = [-99.0]*5
 
         lat_longs = [(float(x.split(" ")[0]), float(x.split(" ")[1])) for x in edge["lat_long"].split(", ")]
         for (lat, long) in lat_longs:
@@ -136,28 +146,111 @@ def get_image_scores(db_edges, step=1):
     return db_edges
 
 
-def get_creepiness_score(db_edges):
+
+def get_creepiness_score(db_edges, perception_weight=0.3, include_park=True, include_industrial=True):
 
     # -- convert list of dicts to dataframe for vector operations -------------------------------------------
     edges = pd.DataFrame(db_edges)
-
+    edges2 = edges.copy()
 
     # compute district scores for edges without street scores -----------------------------------------------
+    d = dict()
     for cls in ["neutral", "positive", "negative", "very_positive", "very_negative"]:
-        district_score = edges.groupby(["country", "city", "district"])["score_neutral"].mean()
-        edges.loc[edges["score_neutral"].isnull(), "score_neutral"] = district_score
+        edges2[f"score_{cls}"] = edges2[f"score_{cls}"].replace(-99.0, np.nan)
+        d[f"score_{cls}"] = edges[f"score_{cls}"].replace(-99.0, np.nan)
+        district_u_score = edges2.groupby(["country", "city", "district_u"])[f"score_{cls}"].transform("mean")
+        district_v_score = edges2.groupby(["country", "city", "district_v"])[f"score_{cls}"].transform("mean")
+        d[f"score_{cls}"].loc[d[f"score_{cls}"].isnull()] = (1/2)*district_u_score + (1/2)*district_v_score
+        d[f"score_{cls}"].loc[d[f"score_{cls}"].isnull()] = d[f"score_{cls}"].mean()
+        # -- normalize streetview scores (range 0 - 10)
+        #d[f"score_{cls}"] = ((d[f"score_{cls}"] - d[f"score_{cls}"].max()) / (d[f"score_{cls}"].min() - d[f"score_{cls}"].max()))
+        d[f"score_{cls}"] = ((d[f"score_{cls}"] - d[f"score_{cls}"].min()) / (d[f"score_{cls}"].max() - d[f"score_{cls}"].min()))
+        d[f"score_{cls}"] = ((1 - d[f"score_{cls}"]) * 9) + 1
 
     # -- compute crime scores -------------------------------------------------------------------------------
-    crime_score = 1
+    RELEVANT_CRIMES = ["tötungsdelikt", "sexualdelikt", "körperverletzung", "raub", "diebstahl", "drogendelikt"]
+
+    db_crimes = db_select("Crimes")
+    crimes_df = pd.DataFrame(db_crimes).groupby(["country", "city", "u", "v", "key"]).count().reset_index()
+
+    edges_crimes = pd.merge(edges[["country", "city","u", "v", "key", "lat_long"]], crimes_df[["u", "v", "key"] + RELEVANT_CRIMES],
+                            how="left",
+                            on=["u", "v", "key"]).fillna(0)
+
+    edges_crimes[RELEVANT_CRIMES] = edges_crimes[RELEVANT_CRIMES] / edges_crimes.groupby(["country", "city"])[RELEVANT_CRIMES].transform("mean")
+    edges_crimes[RELEVANT_CRIMES[:3]] = edges_crimes[RELEVANT_CRIMES[:3]] * 2
+    crime_score = edges_crimes[RELEVANT_CRIMES].sum(axis=1) / 9
+
+    # -- compute mean crime score per grid ----------------------------------------------------
+    edges2["lat_long"] = edges2["lat_long"].apply(lambda x: np.round(
+        np.array([[float(y.split(" ")[0]), float(y.split(" ")[1])] for y in x.split(", ")]).mean(axis=0), 7))
+    edges2.loc[:, ["lat", "long"]] = np.array(edges2["lat_long"].values.tolist())
+
+    grid_size = 60
+    pad_size = 0.00000001
+
+    lat_grid = np.linspace(edges2["lat"].min() - pad_size, edges2["lat"].max() + pad_size, grid_size + 1)
+    lat_diff = ((lat_grid.reshape(1, -1) - edges2["lat"].values.reshape(-1, 1)) < 0).astype(int)
+    lat_grid_idx = np.where(lat_diff[:, :-1] - lat_diff[:, 1:])[1]
+
+    long_grid = np.linspace(edges2["long"].min() - pad_size, edges2["long"].max() + pad_size, grid_size + 1)
+    long_diff = ((long_grid.reshape(1, -1) - edges2["long"].values.reshape(-1, 1)) < 0).astype(int)
+    long_grid_idx = np.where(long_diff[:, :-1] - long_diff[:, 1:])[1]
+
+    edges2["lat_grid_idx"], edges2["long_grid_idx"] = lat_grid_idx, long_grid_idx
+
+    kernel_size = 5
+    crime_grid = np.zeros((grid_size, grid_size))
+
+    edges2["score"] = crime_score
+
+    grid_lines = list()
+    for lat_idx in range(grid_size):
+        for long_idx in range(grid_size):
+            in_lat = ((edges2["lat_grid_idx"] >= lat_idx - 2) * (edges2["lat_grid_idx"] <= lat_idx + 2)).astype(
+                bool)
+            in_long = ((edges2["long_grid_idx"] >= long_idx - 2) * (
+                    edges2["long_grid_idx"] <= long_idx + 2)).astype(bool)
+            score = round(crime_score[(in_lat) & (in_long)].mean(), 1)
+            if pd.isnull(score):
+                score = 0.0
+            edges2.loc[(edges2["lat_grid_idx"] == lat_idx) & (edges2["long_grid_idx"] == long_idx), "score"] = score
+
+    crime_score = edges2["score"].copy()
+
+    # -- normalize crime scores (range 0 - 10)
+    norm_crime_score = (((crime_score - crime_score.min()) / (crime_score.max() - crime_score.min())) * 9) + 1
 
     # -- compute final weights ------------------------------------------------------------------------------
-    edges["weight_neutral"] = edges["length"] * ( (1/3)*edges["score_neutral"] + (2/3)*crime_score + edges["park_flag"].astype(int) + edges["industrial_flag"].astype(int) )
-    edges["weight_positive"] = edges["length"] * ( (1/3)*edges["score_positive"] + (2/3)*crime_score + edges["park_flag"].astype(int) + edges["industrial_flag"].astype(int) )
-    edges["weight_very_positive"] = edges["length"] * ( (1/3)*edges["score_very_positive"] + (2/3)*crime_score + edges["park_flag"].astype(int) + edges["industrial_flag"].astype(int) )
-    edges["weight_negative"] = edges["length"] * ( (1/3)*edges["score_negative"] + (2/3)*crime_score + edges["park_flag"].astype(int) + edges["industrial_flag"].astype(int) )
-    edges["weight_very_negative"] = edges["length"] * ( (1/3)*edges["score_very_negative"] + (2/3)*crime_score + edges["park_flag"].astype(int) + edges["industrial_flag"].astype(int) )
-
+    for cls in ["neutral", "positive", "negative", "very_positive", "very_negative"]:
+        #edges[f"weight_{cls}"] = edges["length"] * ( (1/3)*d[f"score_{cls}"] + (2/3)*crime_score - edges["park_flag"].astype(int) - edges["industrial_flag"].astype(int) )
+        #edges[f"weight_{cls}"] = edges["length"] * min(10, crime_score + (1/3)*(d[f"score_{cls}"]) + edges["park_flag"].astype(int) + edges["industrial_flag"].astype(int) )
+        edges[f"weight_{cls}"] = edges["length"] * ( (1-perception_weight)*norm_crime_score + perception_weight*d[f"score_{cls}"] - int(include_park)*edges["park_flag"].astype(int) - int(include_industrial)*edges["industrial_flag"].astype(int) ).apply(lambda x: min(10,x))
+        #edges[f"weight_{cls}"].loc[edges[f"weight_{cls}"] .isnull()] = edges[f"weight_{cls}"].mean()
     # -- convert dataframe to list of dicts -----------------------------------------------------------------
     db_edges = edges.to_dict('records')
 
     return db_edges
+
+
+def db_to_graph(db_nodes, db_edges):
+    nodes = gpd.GeoDataFrame(db_nodes).set_index(["osmid"])
+    edges = gpd.GeoDataFrame(db_edges).set_index(["u", "v", "key"])
+    edges["geometry"] = edges["geometry"].apply(lambda x: wkt.loads(x))
+    edges = gpd.GeoDataFrame(edges).set_crs("epsg:4326")
+    G = ox.graph_from_gdfs(nodes, edges)
+    return G
+
+
+def get_lat_lon(country, city, street):
+    # get coordinates of streets
+    try:
+        geolocator = Nominatim(user_agent="safewayhome")
+        location = geolocator.geocode(", ".join([country, city, street]), timeout=3)
+    except (GeocoderQuotaExceeded, GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable) as e:
+        print(e)
+        return None, None
+    if location:
+        return location.raw["lat"], location.raw["lon"]
+    else:
+        return None, None

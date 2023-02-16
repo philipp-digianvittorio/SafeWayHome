@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex flex-column h-100">
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card text-center mb-2 mt-2">
+                  <div class="card-body">
+                        <h5 class="card-title">Settings</h5>
+                        <p class="card-title text-muted">Fancy text here bla bla bla line break and so on and so on</p>
+                        <br>
+                        <form method="post">
+                            <div class="row text-start">
+                                <label for="perception_weight" class="form-label">Crime-to-Perception Ratio</label>
+                            </div>
+                            <div class="row">
+                                <div class="col-10">
+                                    <input type="range" name="perception_weight" class="form-range" min="0.1" max="0.3" step="0.05" value="0.3" id="perception_weight" oninput="ratio.value=perception_weight.value">
+                                </div>
+                                <div class="col-2">
+                                    <output id="ratio" name="ratio" for="perception_weight">0.3</output>
+                                </div>
+                            </div>
+                            <br>
+                            <div class="row text-start">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                      <input class="form-check-input" name="include_park" type="checkbox" role="switch" id="include_park" checked>
+                                      <label class="form-check-label" for="include_park">Avoid park areas</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row text-start">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                      <input class="form-check-input" name="include_industrial" type="checkbox" role="switch" id="include_industrial" checked>
+                                      <label class="form-check-label" for="include_industrial">Avoid industrial areas</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <br>
+                            <button type="submit" class="btn btn-primary">Apply Settings</button>
+                        </form>
+                  </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

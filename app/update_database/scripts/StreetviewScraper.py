@@ -8,6 +8,7 @@ from selenium.webdriver.edge.service import Service as EdgeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, ElementNotVisibleException, NoSuchElementException, ScreenshotException, WebDriverException
 
 import numpy as np
 import webbrowser
@@ -66,36 +67,6 @@ class StreetviewScraper():
             print("specified driver not implemented, please use one of the following: 'chromedriver', 'geckodriver', 'msedgedriver'")
 
 
-    def get_street_names(self, country, city):
-        api = overpy.Overpass()
-
-        # Define the query
-        query = f'''
-                area[name="{city}"];
-                way(area)[highway][name];
-                out;'''
-
-        # Call the API
-        res = api.query(query)
-
-        if res:
-            street_names = list(set([way.tags["name"] for way in res.ways]))
-            return street_names
-        else:
-            return []
-
-
-    def get_lat_lon(self, location_string):
-        # get coordinates of streets
-        try:
-            geolocator = Nominatim(user_agent="tutorial")
-            location = geolocator.geocode(location_string, timeout=3).raw
-            time.sleep(0.2)
-        except:
-            return None, None
-
-        return location["lat"], location["lon"], location['display_name'].split(', ')[-5:-4][0]
-
 
     def get_streetview_image(self, latitude, longitude):
 
@@ -113,7 +84,7 @@ class StreetviewScraper():
         if self.headless:
             self.driver.set_window_size(1920, 1080)
         self.driver.maximize_window()
-        self.driver.set_page_load_timeout(60)
+        self.driver.set_page_load_timeout(30)
 
         self.wait = WebDriverWait(self.driver, self.wait_seconds)
 
@@ -163,14 +134,9 @@ class StreetviewScraper():
             else:
                 return cropped_img
 
-        except:
+        except (TimeoutException, ElementNotVisibleException, NoSuchElementException, ScreenshotException, WebDriverException) as e:
+            print(e)
             self.driver.close()
             self.driver.quit()
             return None
 
-        # open webbrowser which redirects you to different URL (takes some seconds)
-        #webbrowser.open(url)
-        #time.sleep(10)
-
-        # take screenshot
-        #img = ImageGrab.grab()

@@ -8,7 +8,7 @@
             <div class="card text-center mb-2 mt-2" style="background: rgba(255, 255, 255, 0.8);">
                 <div class="card-body">
                     <h5 class="card-title">Enter your Route</h5>
-
+                    <p class="card-title text-muted">Fancy text here bla bla bla line break and so on and so on</p>
                     <form method="post">
                         <div class="input-group mb-3">
                             <input id="start_loc" class="form-control" placeholder="start" value="" name="start_loc">
@@ -47,11 +47,24 @@
                     <div class="card text-center" style="background: rgba(255, 255, 255, 0.8);">
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-5">
-                                    <button type="submit" class="btn btn-primary" onClick="safeRoute()">Safe Route</button>
+                                <div class="col-3">distance</div>
+                                <div class="col-3">duration</div>
+                                <div class="col-3">score</div>
+                            </div>
+                            <div class="row align-items-center mb-1">
+                                <div class="col-3 text-center text-muted">{{params["safe_length"]}}km</div>
+                                <div class="col-3 text-center text-muted">{{params["safe_duration"]}}min</div>
+                                <div class="col-3 text-center text-primary fw-bold">{{params["safe_score"]}}</div>
+                                <div class="col-3 text-center">
+                                    <button type="submit" class="btn btn-primary" onClick="safeRoute()">Safe<br />Route</button>
                                 </div>
-                                <div class="col-5 offset-2">
-                                    <button type="submit" class="btn btn-secondary" onClick="fastRoute()">Short Route</button>
+                            </div>
+                            <div class="row align-items-center mt-1">
+                                <div class="col-3 text-center text-muted">{{params["short_length"]}}km</div>
+                                <div class="col-3 text-center text-muted">{{params["short_duration"]}}min</div>
+                                <div class="col-3 text-center text-primary fw-bold">{{params["short_score"]}}</div>
+                                <div class="col-3 text-center">
+                                    <button type="submit" class="btn btn-secondary" onClick="fastRoute()">Short<br />Route</button>
                                 </div>
                             </div>
                         </div>
@@ -183,8 +196,8 @@
         var marker_start = L.marker(route["start_coords"]);
         var marker_dest = L.marker(route["dest_coords"]);
 
-        var safeR = L.polyline(safe_route, {"color": "green"});
-        var shortR = L.polyline(short_route, {"color": "red"});
+        var safeR = L.polyline(safe_route, {"color": "green", "weight": 5, "opacity": 0.8});
+        var shortR = L.polyline(short_route, {"color": "red", "weight": 5, "opacity": 0.8});
 
         var featureGroup = L.featureGroup([marker_start, marker_dest, safeR, shortR]).addTo(map);
 
@@ -193,7 +206,7 @@
             L.rectangle([
                                 L.latLng(grid[i]["lat_min"], grid[i]["long_min"]),
                                 L.latLng(grid[i]["lat_max"], grid[i]["long_max"])
-                              ]).setStyle({fillColor: grid[i]["color"], fillOpacity: 0.3, stroke: false}).addTo(featureGroup);
+                              ]).setStyle({fillColor: grid[i]["color"], fillOpacity: grid[i]["opacity"], stroke: false}).addTo(featureGroup);
                           };
 
         map.fitBounds(featureGroup.getBounds());
