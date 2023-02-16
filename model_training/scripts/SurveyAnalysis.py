@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 
-base_dir = r"C:/users/philipp/documents/studium/master/4. semester/ds project/safewayhome/model_training/data"
+base_dir = r"/data"
 
 efs = pd.read_csv(os.path.join(base_dir, "efs_list.csv"))
 efs = efs.iloc[:,[0,2]]

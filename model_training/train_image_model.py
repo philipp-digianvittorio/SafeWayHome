@@ -8,15 +8,15 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.models import resnet50, ResNet50_Weights
 
-from model_training.scripts.Functions import model_training, evaluate
-from model_training.scripts.Datasets import StreetDataset
+from scripts.Functions import model_training, evaluate
+from scripts.Datasets import StreetDataset
 
 ################################################################################################
 ### -- Parameter Settings ------------------------------------------------------------------ ###
 ################################################################################################
-BASE_DIR = r"C:\users\philipp\documents\studium\master\4. semester\ds project\safewayhome"
-INPUT_DIR = os.path.join(BASE_DIR, r"model_training\data\ratings")
-IMAGE_DIR = os.path.join(BASE_DIR, r"model_training\data\images")
+BASE_DIR = os.getcwd()
+INPUT_DIR = os.path.join(BASE_DIR, r"data\ratings")
+IMAGE_DIR = os.path.join(BASE_DIR, r"data\images")
 
 RANDOM_SEED = 8
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')

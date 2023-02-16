@@ -14,6 +14,9 @@ geopy
 geopandas
 torch
 torchvision
+datasets
+transformers
+huggingface_hub
 
 selenium
 requests

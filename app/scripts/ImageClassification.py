@@ -32,4 +32,3 @@ def score_image(img):
     score_very_negative = round(streetview_model_very_negative(img).item(),1)
 
     return score_neutral, score_positive, score_very_positive, score_negative, score_very_negative
-

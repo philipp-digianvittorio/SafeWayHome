@@ -1,7 +1,7 @@
 
 import pandas as pd
 import openai
-from app.update_database.scripts.SQLAlchemyDB import db_select
+from scripts.SQLAlchemyDB import db_select
 
 articles = db_select("Articles")
 
