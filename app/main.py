@@ -9,52 +9,30 @@
 # pip install sqlalchemy
 
 # -- import flask modules
-from flask import Flask, render_template, request, flash
+from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_wtf import FlaskForm
 from wtforms import SubmitField
 
-
 # -- import database modules
-from sqlalchemy import inspect, or_, and_
-from scripts.FlaskDataBase import db, initialize_database, create_database_mysql, db_select, db_insert, Headquarters, Nodes, Edges, drop_database_mysql, mysql_pw
+from sqlalchemy import inspect
+from scripts.FlaskDataBase import db, drop_database_mysql, initialize_database, create_database_mysql, db_select, db_update, Nodes, Edges
 
 # -- import additional scripts
 from settings import DATABASE_URL
-from update_database.scripts.PresseportalScraper import PresseportalScraper
+from scripts.GeoDataProcessing import get_lat_lon, db_to_graph, get_creepiness_score
+
 
 # -- import plot modules
 import json
-#import plotly
-import osmnx as ox
+import plotly
 import numpy as np
 import pandas as pd
-#import taxicab as tc
-#from scripts.OSMConnection import get_police_coords
 
-#from scripts.compute_plot_route import plot_route, node_list_to_path_short
-#io.renderers.default='browser'
-
-
-from geopy.geocoders import Nominatim
 import geopy.distance
 import geopandas as gpd
 import osmnx as ox
 import networkx as nx
 from shapely import wkt
-
-from scripts.compute_plot_route import compute_linestring_length, get_edge_geometry, compute_taxi_length, \
-    get_best_path, plot_path, node_list_to_path, get_creepiness_score
-
-
-def get_lat_lon(address):
-    # get coordinates of streets
-    try:
-        geolocator = Nominatim(user_agent="tutorial")
-        location = geolocator.geocode(address, timeout=3).raw
-    except:
-        return None, None, None
-
-    return location["lat"], location["lon"], location['display_name'].split(', ')[-5:-4][0]
 
 
 # -- Initialize App ----------------------------------------------------------------------------
@@ -68,7 +46,7 @@ db_name = "mysql_db"
 #initialize_database(app=app, db_uri=DATABASE_URL)
 
 # -- initialize mysql database
-#drop_database_mysql(db_name, host="localhost", user="root", pw=mysql_pw)
+#drop_database_mysql(db_name, host="localhost", user="root", pw="celestial09#")
 create_database_mysql(name=db_name)  # mysql
 initialize_database(app=app, db_uri=DATABASE_URL)  # mysql
 
@@ -80,15 +58,11 @@ app.config["SECRET_KEY"] = "slafnlanlskjfkjafkjebfkjjkebfpqfeh3737664aiq4893hckc
 
 
 ################################################################################################
-### -- Define FlaskForms ------------------------------------------------------------------- ###
+### -- Define Global Variables ------------------------------------------------------------- ###
 ################################################################################################
-
-# -- Database Form -----------------------------------------------------------------------------
-class DataBaseForm(FlaskForm):
-
-	submit = SubmitField("Load Database Data")
-
-
+PERCEPTION_WEIGHT = (1/3)
+INCLUDE_PARK = True
+INCLUDE_INDUSTRIAL = True
 
 
 ################################################################################################
@@ -98,7 +72,7 @@ class DataBaseForm(FlaskForm):
 
 # -- Home Route --------------------------------------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
-def my_func():
+def render_home():
     if request.method == "POST":
 
         print(request.form)
@@ -127,12 +101,20 @@ def my_func():
         route = json.dumps(route)
         grid = json.dumps({})
 
+        # -- grid lines ----------------------------------------------------------
+
+
         # -- nodes and edges -----------------------------------------------------
-        pad = 0.000005
-        nodes_filters = (Nodes.y <= max(start_coords[0], dest_coords[0]) + pad,
-                         Nodes.y >= min(start_coords[0], dest_coords[0]) - pad,
-                         Nodes.x <= max(start_coords[1], dest_coords[1]) + pad,
-                         Nodes.x >= min(start_coords[1], dest_coords[1]) - pad,
+
+        m = np.mean([start_coords, dest_coords], axis=0)
+        radius = abs(start_coords - m).max()
+        pad = 0.001
+        max_coords, min_coords = m + radius + pad, m - radius - pad
+
+        nodes_filters = (Nodes.y <= max_coords[0],
+                         Nodes.y >= min_coords[0],
+                         Nodes.x <= max_coords[1],
+                         Nodes.x >= min_coords[1],
                          )
 
         db_nodes = db_select("Nodes", filters=nodes_filters)
@@ -152,8 +134,8 @@ def my_func():
         start_edge = ox.nearest_edges(G, start_coords[1], start_coords[0])
         dest_edge = ox.nearest_edges(G, dest_coords[1], dest_coords[0])
 
-        path_safe = nx.shortest_path(G, start_edge[0], dest_edge[0], weight='weight_neutral')
-        path_short = nx.shortest_path(G, start_edge[0], dest_edge[0], weight='length')
+        path_safe = ox.shortest_path(G, start_edge[0], dest_edge[1], weight='weight_neutral')
+        path_short = ox.shortest_path(G, start_edge[0], dest_edge[1], weight='length')
 
         edge_nodes_safe = list(zip(path_safe[:-1], path_safe[1:], [0]*(len(path_safe)-1)))
         edge_nodes_short = list(zip(path_short[:-1], path_short[1:], [0] * (len(path_short) - 1)))
@@ -167,10 +149,86 @@ def my_func():
         lat_long_short.insert(0, start_coords)
         lat_long_short.append(dest_coords)
 
-        print(lat_long_safe)
-        print(lat_long_short)
+        short_length = edges[~edges.index.duplicated(keep='first')].loc[edge_nodes_short, "length"].sum()
+        safe_length = edges[~edges.index.duplicated(keep='first')].loc[edge_nodes_safe, "length"].sum()
 
-        return render_template('index.html', valid_coords=valid_coords, route=route, grid=grid, safe_route=json.dumps(lat_long_safe), short_route=json.dumps(lat_long_short))
+        short_score = edges[~edges.index.duplicated(keep='first')].loc[edge_nodes_short, "weight_neutral"].sum()/short_length
+        safe_score = edges[~edges.index.duplicated(keep='first')].loc[edge_nodes_safe, "weight_neutral"].sum()/safe_length
+
+        params = {"short_length": round(short_length/1000,1),
+                  "short_duration": int(round(((short_length/1000)/3)*60,0)),
+                  "short_score": round(short_score,1),
+                  "safe_length": round(safe_length/1000,1),
+                  "safe_duration": int(round(((safe_length/1000)/3)*60,0)),
+                  "safe_score": round(safe_score,1)}
+
+
+        # -- compute mean crime score per grid ----------------------------------------------------
+        edges["lat_long"] = edges["lat_long"].apply(lambda x: np.round(
+            np.array([[float(y.split(" ")[0]), float(y.split(" ")[1])] for y in x.split(", ")]).mean(axis=0), 7))
+        edges.loc[:, ["lat", "long"]] = np.array(edges["lat_long"].values.tolist())
+
+        grid_size = 30
+        pad_size = 0.00000001
+
+        lat_grid = np.linspace(edges["lat"].min() - pad_size, edges["lat"].max() + pad_size, grid_size + 1)
+        lat_diff = ((lat_grid.reshape(1, -1) - edges["lat"].values.reshape(-1, 1)) < 0).astype(int)
+        lat_grid_idx = np.where(lat_diff[:, :-1] - lat_diff[:, 1:])[1]
+
+        long_grid = np.linspace(edges["long"].min() - pad_size, edges["long"].max() + pad_size, grid_size + 1)
+        long_diff = ((long_grid.reshape(1, -1) - edges["long"].values.reshape(-1, 1)) < 0).astype(int)
+        long_grid_idx = np.where(long_diff[:, :-1] - long_diff[:, 1:])[1]
+
+        edges["lat_grid_idx"], edges["long_grid_idx"] = lat_grid_idx, long_grid_idx
+
+        def create_color_gradient(c1, c2, n):
+            r = np.linspace(c1[0], c2[0], n).astype(int)
+            g = np.linspace(c1[1], c2[1], n).astype(int)
+            b = np.linspace(c1[2], c2[2], n).astype(int)
+            return list(zip(r, g, b))
+
+        def rgb_to_hex(r, g, b):
+            return '#{:02x}{:02x}{:02x}'.format(r, g, b)
+
+        c1 = (77, 216, 219)  # light blue
+        c2 = (223, 32, 32)  # red
+        n = 101
+
+        color_gradients = [rgb_to_hex(*c) for c in create_color_gradient(c1, c2, n)]
+        color_mapper = dict(zip(np.arange(0.0, 10.1, 0.1).round(1), color_gradients))
+
+        kernel_size = 3
+        padding = 1
+        crime_grid = np.zeros((grid_size, grid_size))
+
+        grid_lines = list()
+        scores = edges["weight_neutral"]/edges["length"]
+        print(scores)
+        for lat_idx in range(grid_size):
+            for long_idx in range(grid_size):
+                in_lat = ((edges["lat_grid_idx"] >= lat_idx - 1) * (edges["lat_grid_idx"] <= lat_idx + 1)).astype(
+                    bool)
+                in_long = ((edges["long_grid_idx"] >= long_idx - 1) * (
+                            edges["long_grid_idx"] <= long_idx + 1)).astype(bool)
+                score = round(scores[(in_lat) & (in_long)].mean(), 1)
+                if pd.isnull(score):
+                    score = 0.0
+                color = color_mapper[score]
+                opacity = min(1,max(0,(score - 3)/5)**2)
+                crime_grid[lat_idx, long_idx] = score
+                # edges_df.loc[(edges_df["lat_grid_idx"] == lat_idx) & (edges_df["long_grid_idx"] == long_idx), "score"] = score
+                # edges_df.loc[(edges_df["lat_grid_idx"] == lat_idx) & (edges_df["long_grid_idx"] == long_idx), "color"] = color
+                grid_lines.append(
+                    {"lat_min": lat_grid[lat_idx],
+                     "lat_max": lat_grid[lat_idx + 1],
+                     "long_min": long_grid[long_idx],
+                     "long_max": long_grid[long_idx + 1],
+                     "crime_score": score,
+                     "color": color,
+                     "opacity": opacity}
+                )
+
+        return render_template('index.html', valid_coords=valid_coords, route=route, grid=json.dumps(grid_lines), safe_route=json.dumps(lat_long_safe), short_route=json.dumps(lat_long_short), params=params)
 
     else:
         route = json.dumps({"start_coords": "NA",
@@ -180,103 +238,37 @@ def my_func():
         valid_coords = False
 
         # Render the input form
-        return render_template('index.html', valid_coords=valid_coords, route=route, grid=grid, safe_route=json.dumps([]), short_route=json.dumps([]))
+        return render_template('index.html', valid_coords=valid_coords, route=route, grid=grid, safe_route=json.dumps([]), short_route=json.dumps([]), params=json.dumps([]))
 
-'''
-# -- Plotly Testpage ------------------------------------------------------------------------
-@app.route("/map", methods=["GET", "POST"])
-def plotly_plot():
-    # Include plot
-    orig = (50.110446, 8.681968) # Römer #{{}}
-    dest = (50.115452, 8.671515) # Oper #{{}}
 
-    # compute middle and distance to origin
-    m = np.mean([orig, dest], axis=0)
+# -- Database Route ----------------------------------------------------------------------------
+@app.route("/about", methods=["GET", "POST"])
+def render_about():
+    return render_template("about.html")
 
-    # compute distance in kilometers
-    radius = geopy.distance.geodesic(orig, m).m + 100  # add 100m
 
-    # get OSM data around the start point
-    G = ox.graph_from_point(m, dist=radius, network_type='walk')
-
-    # get number of edges within radius
-    n_edges = len(list(G.edges(data=True)))
-
-    # get street from database
-    db_streets = pd.DataFrame(db_select("Streets"))
-    db_district = db_streets.groupby(['district']).agg("mean")
-
-    # read in json file for district allocation
-    ffm_geojson = gpd.read_file('geodata/districts.json')
-    list(G.edges(data=True))[0][0:2]
-    # loop over all edges
-    for i in range(0, n_edges):
-        nodea, nodeb = list(G.edges(data=True))[i][0:2]
-        # may cause problems with districts as they are not yet in database
-        creepiness_score = get_creepiness_score(nodea, nodeb)
-        G.edges[(nodea, nodeb, 0)]["score"] = creepiness_score
-
-    route_short = get_best_path(G, orig, dest, 'length')
-    route_safe = get_best_path(G, orig, dest, 'score')
-
-    lon_short, lat_short = node_list_to_path(G, route_short)
-    lon_safe, lat_safe = node_list_to_path(G, route_safe)
-
-    fig = plot_path(lat_short, lon_short, lat_safe, lon_safe)
-
-    #fig = plot_route(lat2, long2, start, destination)
-
-    graphJSON = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
-
-    return render_template('index.html', graphJSON=graphJSON)
-
-'''
 # -- Database Route ----------------------------------------------------------------------------
 @app.route("/database", methods=["GET", "POST"])
-def upload():
+def render_database():
 	if request.method == "POST":
-		pass
-	########################################################################################
-	### -- Update Database ------------------------------------------------------------- ###
-	########################################################################################
-
-	else:
-		pass
-	# code here
-	if len(db_select("Articles")) == 0:
-		sc = PresseportalScraper()
-		hq = sc.get_police_headquarters()
-		articles = sc.get_articles(hq[89], max_articles=30)
-		res = db_insert("Headquarters", hq)
-		res = db_insert("Articles", articles)
-		flash("Data scraped successfully", "info")
-	db_articles = db_select("Articles")
-	#db_articles = [{"title": "title 1", "text": "blad ajdnfa wjf weonf oawefw o "}, {"title": "title 2", "text": "blad ajdnfa wjf weonf oawefw o "}]
-	return render_template("database.html", db_articles = db_articles)
+	    return render_template("database.html")
 
 
-# -- About Route -------------------------------------------------------------------------------
-@app.route("/about", methods=["GET", "POST"])
-def about():
-	#form=DatabaseForm()
-	form = None
-	return render_template("about.html", form=form)
+# -- Settings Route ----------------------------------------------------------------------------
+@app.route("/settings", methods=["GET", "POST"])
+def render_settings():
+    if request.method == "POST":
+        print(request.form)
+        PERCEPTION_WEIGHT = float(request.form["perception_weight"])
+        INCLUDE_PARK = True if request.form.get("include_park") == "on" else False
+        INCLUDE_INDUSTRIAL = True if request.form.get("include_industrial") == "on" else False
+        db_edges = db_select("Edges")
+        db_edges = get_creepiness_score(db_edges, PERCEPTION_WEIGHT, INCLUDE_PARK, INCLUDE_INDUSTRIAL)
+        res = db_update("Edges", db_edges, bulk_update=True)
+        return redirect(url_for("render_home"))
+    else:
+        return render_template("settings.html")
 
-
-# -- Code Route --------------------------------------------------------------------------------
-@app.route("/code", methods=["GET", "POST"])
-def getcode():
-	#form=DatabaseForm()
-	form = None
-	return render_template("getcode.html", form=form)
-
-
-# -- Imprint Route -----------------------------------------------------------------------------
-@app.route("/imprint", methods=["GET", "POST"])
-def imprint():
-	#form=DatabaseForm()
-	form = None
-	return render_template("imprint.html", form=form)
 
 ################################################################################################
 ### -- Run the App ------------------------------------------------------------------------- ###
