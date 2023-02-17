@@ -28,5 +28,6 @@ pymysql
 mysql-connector-python
 cryptography
 pillow
+osmnx
 
 
